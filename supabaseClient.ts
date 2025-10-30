@@ -39,8 +39,28 @@ const mapDbRowToResponses = (row: Record<string, unknown>): Partial<Responses> =
     return sanitizeResponses(responses);
 };
 
-export const transformResponsesForDB = (responses: Responses, sessionId: string) => {
+interface ResponseMetadata {
+    userAgent?: string | null;
+    isCompleted?: boolean;
+    currentSection?: string;
+    progressPercentage?: number;
+    completedAt?: string | null;
+}
+
+const getUserAgent = (fallback?: string | null) => {
+    if (typeof navigator !== 'undefined' && navigator.userAgent) {
+        return navigator.userAgent;
+    }
+    return fallback ?? null;
+};
+
+export const transformResponsesForDB = (
+    responses: Responses,
+    sessionId: string,
+    metadata: ResponseMetadata = {}
+) => {
     const sanitized = sanitizeResponses(responses);
+
     return {
         session_id: sessionId,
         email: sanitized.email,
@@ -118,22 +138,29 @@ export const transformResponsesForDB = (responses: Responses, sessionId: string)
         case_study_interest: sanitized.caseStudyInterest || null,
         final_comments: sanitized.finalComments || null,
         enter_drawing: sanitized.enterDrawing || null,
-        is_completed: true,
-        completed_at: new Date().toISOString(),
-        progress_percentage: 100,
-        current_section: 'completed',
-        user_agent: navigator.userAgent,
+        is_completed: metadata.isCompleted ?? false,
+        completed_at: metadata.completedAt ?? null,
+        progress_percentage: metadata.progressPercentage ?? 0,
+        current_section: metadata.currentSection ?? 'demographics',
+        user_agent: getUserAgent(metadata.userAgent),
+        updated_at: new Date().toISOString(),
     };
 };
 
 // Submit completed survey
 export const submitSurveyResponse = async (responses: Responses, sessionId: string) => {
     try {
-        const dbData = transformResponsesForDB(responses, sessionId);
+        const dbData = transformResponsesForDB(responses, sessionId, {
+            userAgent: getUserAgent(),
+            isCompleted: true,
+            currentSection: 'completed',
+            progressPercentage: 100,
+            completedAt: new Date().toISOString(),
+        });
 
         const { data, error } = await supabase
             .from('survey_responses')
-            .insert([dbData])
+            .upsert([dbData], { onConflict: 'session_id' })
             .select();
 
         if (error) {
@@ -156,17 +183,17 @@ export const autoSaveProgress = async (
     progressPercentage: number
 ) => {
     try {
-        const dbData = transformResponsesForDB(responses, sessionId);
+        const dbData = transformResponsesForDB(responses, sessionId, {
+            userAgent: getUserAgent(),
+            isCompleted: false,
+            currentSection,
+            progressPercentage,
+            completedAt: null,
+        });
 
         const { data, error } = await supabase
             .from('survey_responses')
-            .upsert([{
-                ...dbData,
-                is_completed: false,
-                current_section: currentSection,
-                progress_percentage: progressPercentage,
-                completed_at: null,
-            }], {
+            .upsert([dbData], {
                 onConflict: 'session_id'
             })
             .select();
