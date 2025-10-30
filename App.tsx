@@ -404,10 +404,9 @@ const renderSectionComponent = (sectionIndex: number, props: SectionProps) => {
             default: return null;
         }
     }
-    const currentSectionData = SECTIONS[sectionIndex];
     return (
         <div className="space-y-6">
-            <SectionContent />
+            {SectionContent()}
         </div>
     );
 };
