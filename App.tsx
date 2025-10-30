@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback, useId } from 'react';
 import { SECTIONS, INITIAL_RESPONSES, PROGRESS_BAR_GROUPS } from './constants';
 import { Responses, Errors, SurveyStatus, Section } from './types';
 import ProgressBar from './components/ProgressBar';
-import CompletionScreen from './components/WelcomeScreen'; 
+import CompletionScreen from './components/WelcomeScreen';
 import Chatbot from './components/Chatbot';
 import { ChevronLeft, ChevronRight, Check, AlertCircle, Edit2, Clock, ChevronsUpDown, MessageCircle } from 'lucide-react';
+import { submitSurveyResponse, autoSaveProgress, generateSessionId } from './supabaseClient';
 
 // --- Reusable Input Components ---
 
@@ -420,6 +421,17 @@ const App: React.FC = () => {
     const [history, setHistory] = useState<number[]>([0]);
     const [status, setStatus] = useState<SurveyStatus>(SurveyStatus.IN_PROGRESS);
     const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+    const [sessionId] = useState<string>(() => {
+        // Try to get existing session ID from localStorage, or generate new one
+        const existingSession = localStorage.getItem('survey_session_id');
+        if (existingSession) return existingSession;
+        const newSession = generateSessionId();
+        localStorage.setItem('survey_session_id', newSession);
+        return newSession;
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submissionError, setSubmissionError] = useState<string | null>(null);
+    const [submissionSuccess, setSubmissionSuccess] = useState(false);
 
     const updateResponse = useCallback((field: keyof Responses, value: any) => {
         setResponses(prev => ({ ...prev, [field]: value }));
@@ -445,7 +457,22 @@ const App: React.FC = () => {
             setErrors(prev => ({ ...prev, [field]: null }));
         }
     }, [errors]);
-    
+
+    // Auto-save progress every 30 seconds
+    useEffect(() => {
+        const autoSaveInterval = setInterval(() => {
+            if (status === SurveyStatus.IN_PROGRESS && responses.email) {
+                const currentSectionId = SECTIONS[currentSection].id;
+                const progressPercentage = Math.round(((currentSection + 1) / SECTIONS.length) * 100);
+                autoSaveProgress(responses, sessionId, currentSectionId, progressPercentage)
+                    .then(() => console.log('Progress auto-saved'))
+                    .catch(err => console.error('Auto-save failed:', err));
+            }
+        }, 30000); // Auto-save every 30 seconds
+
+        return () => clearInterval(autoSaveInterval);
+    }, [responses, currentSection, sessionId, status]);
+
     const validateSection = useCallback((sectionIndex: number): boolean => {
         const sectionId = SECTIONS[sectionIndex].id;
         const newErrors: Errors = {};
@@ -542,7 +569,7 @@ const App: React.FC = () => {
         return isValid;
     }, [responses]);
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (validateSection(currentSection)) {
             if (currentSection < SECTIONS.length - 1) {
                 const nextSection = currentSection + 1;
@@ -552,7 +579,28 @@ const App: React.FC = () => {
                 }
                 window.scrollTo(0, 0);
             } else {
-                setStatus(SurveyStatus.COMPLETED);
+                // Final submission
+                setIsSubmitting(true);
+                setSubmissionError(null);
+
+                try {
+                    const result = await submitSurveyResponse(responses, sessionId);
+
+                    if (result.success) {
+                        setSubmissionSuccess(true);
+                        setStatus(SurveyStatus.COMPLETED);
+                        // Clear session storage on successful submission
+                        localStorage.removeItem('survey_session_id');
+                    } else {
+                        setSubmissionError('Failed to submit survey. Please try again or download your responses as backup.');
+                    }
+                } catch (error) {
+                    console.error('Submission error:', error);
+                    setSubmissionError('An error occurred while submitting. Please try again or download your responses as backup.');
+                } finally {
+                    setIsSubmitting(false);
+                }
+
                 window.scrollTo(0, 0);
             }
         } else {
@@ -575,7 +623,7 @@ const App: React.FC = () => {
     };
 
     if (status === SurveyStatus.COMPLETED) {
-        return <main className="min-h-screen bg-brand-gray-cloud flex items-center justify-center p-4"><CompletionScreen responses={responses} /></main>;
+        return <main className="min-h-screen bg-brand-gray-cloud flex items-center justify-center p-4"><CompletionScreen responses={responses} submissionSuccess={submissionSuccess} /></main>;
     }
 
     const currentSectionData = SECTIONS[currentSection];
@@ -586,7 +634,7 @@ const App: React.FC = () => {
         <main className="min-h-screen bg-brand-gray-cloud p-4 sm:p-6 md:p-8">
             <div className="max-w-3xl mx-auto">
                 <header className="text-center mb-8">
-                    <img src="https://storage.googleapis.com/agnt-mkt-assets/agntmkt-logo-orange-dk-grey.png" alt="AGNTMKT Logo" className="h-10 mx-auto mb-4" />
+                    <img src="https://dhqupibzlgpkwagmkjtg.supabase.co/storage/v1/object/public/images/Asset%201@4x-8.png" alt="Business Logo" className="h-16 mx-auto mb-4" />
                     <h1 className="text-3xl sm:text-4xl font-bold text-brand-dark-bg mb-2">2025 AI in Franchising Survey</h1>
                     <p className="text-brand-gray-graphite">Thank you for contributing to this important industry research.</p>
                 </header>
@@ -607,14 +655,27 @@ const App: React.FC = () => {
 
                     {renderSectionComponent(currentSection, { responses, updateResponse, toggleArrayItem, errors, jumpToSection })}
 
+                    {submissionError && (
+                        <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-red-700 flex items-center">
+                                <AlertCircle className="w-5 h-5 mr-2" />
+                                {submissionError}
+                            </p>
+                        </div>
+                    )}
+
                     <div className="mt-8 pt-6 border-t border-brand-gray-smoke flex justify-between items-center">
-                        <button onClick={handlePrev} disabled={currentSection === 0} className="flex items-center px-4 py-2 font-bold text-brand-dark-bg bg-brand-gray-smoke rounded-lg hover:bg-brand-gray-steel/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button onClick={handlePrev} disabled={currentSection === 0 || isSubmitting} className="flex items-center px-4 py-2 font-bold text-brand-dark-bg bg-brand-gray-smoke rounded-lg hover:bg-brand-gray-steel/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <ChevronLeft className="w-5 h-5 mr-1" />
                             Previous
                         </button>
-                        <button onClick={handleNext} className="flex items-center px-6 py-3 font-bold text-white bg-brand-orange rounded-lg hover:opacity-90 transition-opacity">
-                            {currentSection === SECTIONS.length - 1 ? 'Submit' : 'Next'}
-                            {currentSection === SECTIONS.length - 1 ? <Check className="w-5 h-5 ml-2" /> : <ChevronRight className="w-5 h-5 ml-2" />}
+                        <button
+                            onClick={handleNext}
+                            disabled={isSubmitting}
+                            className="flex items-center px-6 py-3 font-bold text-white bg-brand-orange rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isSubmitting ? 'Submitting...' : (currentSection === SECTIONS.length - 1 ? 'Submit' : 'Next')}
+                            {!isSubmitting && (currentSection === SECTIONS.length - 1 ? <Check className="w-5 h-5 ml-2" /> : <ChevronRight className="w-5 h-5 ml-2" />)}
                         </button>
                     </div>
                 </div>
