@@ -5,7 +5,7 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
 ## Features
 
 - 15 comprehensive survey sections covering AI usage, tools, investment, ROI, and more
-- Integrated AI chatbot assistant powered by Google Gemini
+- Integrated AI chatbot assistant powered by Anthropic Claude
 - Progress tracking and validation
 - Responsive design with Tailwind CSS
 - CSV export of survey responses
@@ -21,10 +21,15 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
 
 2. **Set up environment variables:**
 
-   Create a `.env.local` file and add your Gemini API key:
+   Create a `.env.local` file and add your Anthropic API key:
    ```
-   GEMINI_API_KEY=your_actual_api_key_here
+   VITE_ANTHROPIC_API_KEY=your_actual_api_key_here
    ```
+
+   **⚠️ IMPORTANT SECURITY NOTE:**
+   - Never commit your API key to git
+   - Revoke and regenerate your key if it's ever exposed
+   - For production, use a backend proxy instead of client-side API calls
 
 3. **Run the development server:**
    ```bash
@@ -44,8 +49,8 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
 
 In your Vercel project settings, add the following environment variable:
 
-- **Name:** `GEMINI_API_KEY`
-- **Value:** Your Google Gemini API key
+- **Name:** `VITE_ANTHROPIC_API_KEY`
+- **Value:** Your Anthropic Claude API key
 - **Scope:** Production, Preview, Development
 
 ### Deployment
@@ -60,7 +65,7 @@ The app is configured to deploy automatically to Vercel when you push to the `ma
 - **TypeScript** 5.8.2
 - **Vite** 6.2.0
 - **Tailwind CSS** (CDN)
-- **Google Gemini AI** (@google/genai)
+- **Anthropic Claude** (@anthropic-ai/sdk)
 - **Lucide React** (icons)
 
 ## Project Structure
