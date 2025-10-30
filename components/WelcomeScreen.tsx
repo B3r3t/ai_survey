@@ -1,12 +1,13 @@
 import React from 'react';
-import { Award, Download } from 'lucide-react';
+import { Award, Download, CheckCircle } from 'lucide-react';
 import { Responses } from '../types';
 
 interface CompletionScreenProps {
     responses: Responses | null;
+    submissionSuccess?: boolean;
 }
 
-const CompletionScreen: React.FC<CompletionScreenProps> = ({ responses }) => {
+const CompletionScreen: React.FC<CompletionScreenProps> = ({ responses, submissionSuccess = false }) => {
     
     const handleDownload = () => {
         if (!responses) return;
@@ -44,9 +45,21 @@ const CompletionScreen: React.FC<CompletionScreenProps> = ({ responses }) => {
                 </div>
             </div>
             <h1 className="text-3xl font-bold text-brand-dark-bg mb-2">Thank You!</h1>
-            <p className="text-brand-gray-graphite mb-6">
-                Your survey has been submitted successfully.
-            </p>
+            {submissionSuccess ? (
+                <div className="mb-6">
+                    <div className="flex items-center justify-center text-green-600 mb-2">
+                        <CheckCircle className="w-5 h-5 mr-2" />
+                        <p className="font-semibold">Survey submitted successfully!</p>
+                    </div>
+                    <p className="text-brand-gray-graphite">
+                        Your responses have been saved to our database.
+                    </p>
+                </div>
+            ) : (
+                <p className="text-brand-gray-graphite mb-6">
+                    Your survey has been completed.
+                </p>
+            )}
             {responses && (
                  <button 
                     onClick={handleDownload}
