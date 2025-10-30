@@ -21,15 +21,15 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
 
 2. **Set up environment variables:**
 
-   Create a `.env.local` file and add your Anthropic API key:
+   Create a `.env.local` file and add your Anthropic API key (this is used by the backend proxy only):
    ```
-   VITE_ANTHROPIC_API_KEY=your_actual_api_key_here
+   ANTHROPIC_API_KEY=your_actual_api_key_here
    ```
 
    **⚠️ IMPORTANT SECURITY NOTE:**
    - Never commit your API key to git
    - Revoke and regenerate your key if it's ever exposed
-   - For production, use a backend proxy instead of client-side API calls
+   - The app now proxies chatbot traffic through `/api/anthropic-chat` so the key stays on the server
 
 3. **Run the development server:**
    ```bash
@@ -49,13 +49,13 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
 
 In your Vercel project settings, add the following environment variable:
 
-- **Name:** `VITE_ANTHROPIC_API_KEY`
+- **Name:** `ANTHROPIC_API_KEY`
 - **Value:** Your Anthropic Claude API key
 - **Scope:** Production, Preview, Development
 
 ### Deployment
 
-The app is configured to deploy automatically to Vercel when you push to the `main` branch.
+The app is configured to deploy automatically to Vercel when you push to the `main` branch. The `vercel.json` routing table keeps `/api/*` paths pointing at their serverless functions (such as `/api/anthropic-chat`) while every other request falls back to `index.html` for the single-page app shell.
 
 **⚠️ Important:** See `CODEBASE_REVIEW.md` for critical security recommendations before deploying to production.
 

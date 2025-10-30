@@ -4,8 +4,8 @@
 echo "=== Environment Variable Check ==="
 echo ""
 
-if [ -z "$VITE_ANTHROPIC_API_KEY" ]; then
-    echo "❌ VITE_ANTHROPIC_API_KEY is NOT set"
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo "❌ ANTHROPIC_API_KEY is NOT set"
     echo ""
     echo "Next steps:"
     echo "1. Make sure you've added the Codespaces secret in GitHub settings"
@@ -14,13 +14,13 @@ if [ -z "$VITE_ANTHROPIC_API_KEY" ]; then
     echo ""
     echo "Secret should be scoped to this repository: $(git config --get remote.origin.url)"
 else
-    echo "✅ VITE_ANTHROPIC_API_KEY is set"
-    echo "   Value starts with: ${VITE_ANTHROPIC_API_KEY:0:7}..."
+    echo "✅ ANTHROPIC_API_KEY is set"
+    echo "   Value starts with: ${ANTHROPIC_API_KEY:0:7}..."
     echo ""
     echo "Your secret is configured correctly!"
     echo "You can now run: npm run dev"
 fi
 
 echo ""
-echo "=== All VITE_* environment variables ==="
-printenv | grep ^VITE_ || echo "No VITE_* variables found"
+echo "=== All ANTHROPIC_* environment variables ==="
+printenv | grep ^ANTHROPIC_ || echo "No ANTHROPIC_* variables found"
