@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useId } from 'react';
+import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { SECTIONS, INITIAL_RESPONSES, PROGRESS_BAR_GROUPS } from './constants';
 import { Responses, Errors, SurveyStatus, Section } from './types';
 import ProgressBar from './components/ProgressBar';
-import CompletionScreen from './components/WelcomeScreen'; 
+import CompletionScreen from './components/WelcomeScreen';
 import Chatbot from './components/Chatbot';
-import { ChevronLeft, ChevronRight, Check, AlertCircle, Edit2, Clock, ChevronsUpDown, MessageCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, AlertCircle, Edit2, Clock, ChevronsUpDown, MessageCircle, Save } from 'lucide-react';
+import { autoSaveSurvey, submitSurvey, loadSavedSurvey } from './database';
 
 // --- Reusable Input Components ---
 
@@ -420,6 +421,61 @@ const App: React.FC = () => {
     const [history, setHistory] = useState<number[]>([0]);
     const [status, setStatus] = useState<SurveyStatus>(SurveyStatus.IN_PROGRESS);
     const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+    const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const saveTimeoutRef = useRef<number | null>(null);
+
+    // Load saved progress on mount
+    useEffect(() => {
+        const loadProgress = async () => {
+            const { responses: savedResponses, currentSection: savedSection, error } = await loadSavedSurvey();
+            if (savedResponses) {
+                setResponses(savedResponses);
+                if (savedSection !== undefined) {
+                    setCurrentSection(savedSection);
+                    setHistory(Array.from({ length: savedSection + 1 }, (_, i) => i));
+                }
+            }
+            if (error) {
+                console.error('Failed to load saved progress:', error);
+            }
+            setIsLoading(false);
+        };
+        loadProgress();
+    }, []);
+
+    // Auto-save when responses change (debounced)
+    useEffect(() => {
+        if (isLoading) return; // Don't auto-save during initial load
+
+        // Clear existing timeout
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+
+        // Set new timeout for auto-save
+        setSaveStatus('saving');
+        saveTimeoutRef.current = window.setTimeout(async () => {
+            const progressPercentage = Math.round((currentSection / (SECTIONS.length - 1)) * 100);
+            const currentSectionId = SECTIONS[currentSection]?.id || 'demographics';
+
+            const result = await autoSaveSurvey(responses, currentSectionId, progressPercentage);
+
+            if (result.success) {
+                setSaveStatus('saved');
+                setTimeout(() => setSaveStatus(null), 2000); // Clear status after 2s
+            } else {
+                setSaveStatus('error');
+                console.error('Auto-save failed:', result.error);
+            }
+        }, 1000); // Debounce for 1 second
+
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
+    }, [responses, currentSection, isLoading]);
 
     const updateResponse = useCallback((field: keyof Responses, value: any) => {
         setResponses(prev => ({ ...prev, [field]: value }));
@@ -542,7 +598,7 @@ const App: React.FC = () => {
         return isValid;
     }, [responses]);
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (validateSection(currentSection)) {
             if (currentSection < SECTIONS.length - 1) {
                 const nextSection = currentSection + 1;
@@ -552,7 +608,18 @@ const App: React.FC = () => {
                 }
                 window.scrollTo(0, 0);
             } else {
-                setStatus(SurveyStatus.COMPLETED);
+                // Submit the completed survey
+                setSaveStatus('saving');
+                const result = await submitSurvey(responses);
+                if (result.success) {
+                    setStatus(SurveyStatus.COMPLETED);
+                    setSaveStatus(null);
+                } else {
+                    setSaveStatus('error');
+                    console.error('Submit failed:', result.error);
+                    alert('Failed to submit survey. Please try again.');
+                    return;
+                }
                 window.scrollTo(0, 0);
             }
         } else {
@@ -574,6 +641,17 @@ const App: React.FC = () => {
         }
     };
 
+    if (isLoading) {
+        return (
+            <main className="min-h-screen bg-brand-gray-cloud flex items-center justify-center p-4">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-orange mx-auto mb-4"></div>
+                    <p className="text-brand-gray-graphite">Loading survey...</p>
+                </div>
+            </main>
+        );
+    }
+
     if (status === SurveyStatus.COMPLETED) {
         return <main className="min-h-screen bg-brand-gray-cloud flex items-center justify-center p-4"><CompletionScreen responses={responses} /></main>;
     }
@@ -589,6 +667,18 @@ const App: React.FC = () => {
                     <img src="https://storage.googleapis.com/agnt-mkt-assets/agntmkt-logo-orange-dk-grey.png" alt="AGNTMKT Logo" className="h-10 mx-auto mb-4" />
                     <h1 className="text-3xl sm:text-4xl font-bold text-brand-dark-bg mb-2">2025 AI in Franchising Survey</h1>
                     <p className="text-brand-gray-graphite">Thank you for contributing to this important industry research.</p>
+                    {saveStatus && (
+                        <div className={`mt-4 inline-flex items-center px-3 py-1.5 rounded-full text-sm ${
+                            saveStatus === 'saved' ? 'bg-green-100 text-green-700' :
+                            saveStatus === 'saving' ? 'bg-blue-100 text-blue-700' :
+                            'bg-red-100 text-red-700'
+                        }`}>
+                            <Save className="w-4 h-4 mr-1.5" />
+                            {saveStatus === 'saved' && 'Progress saved'}
+                            {saveStatus === 'saving' && 'Saving...'}
+                            {saveStatus === 'error' && 'Save failed'}
+                        </div>
+                    )}
                 </header>
 
                 <div className="bg-white border border-brand-gray-smoke p-6 sm:p-8 rounded-xl shadow-lg">

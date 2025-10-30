@@ -6,9 +6,12 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
 
 - 15 comprehensive survey sections covering AI usage, tools, investment, ROI, and more
 - Integrated AI chatbot assistant powered by Anthropic Claude
+- **Auto-save functionality** - Progress automatically saved to Supabase
+- **Resume capability** - Continue where you left off if you close the browser
 - Progress tracking and validation
 - Responsive design with Tailwind CSS
-- CSV export of survey responses
+- Persistent storage with Supabase PostgreSQL database
+- CSV export of survey responses (local backup)
 
 ## Run Locally
 
@@ -21,15 +24,22 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
 
 2. **Set up environment variables:**
 
-   Create a `.env.local` file and add your Anthropic API key:
-   ```
-   VITE_ANTHROPIC_API_KEY=your_actual_api_key_here
+   Create a `.env.local` file in the root directory:
+   ```env
+   VITE_ANTHROPIC_API_KEY=your_anthropic_api_key_here
+   VITE_SUPABASE_URL=your_supabase_project_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 
+   **Getting Your Credentials:**
+   - **Anthropic API Key**: Get from https://console.anthropic.com/settings/keys
+   - **Supabase URL & Key**: Get from your Supabase project dashboard → Settings → API
+
    **⚠️ IMPORTANT SECURITY NOTE:**
-   - Never commit your API key to git
-   - Revoke and regenerate your key if it's ever exposed
-   - For production, use a backend proxy instead of client-side API calls
+   - Never commit `.env.local` to git (it's already in .gitignore)
+   - Revoke and regenerate keys if they're ever exposed
+   - The `.env.local` file should only exist on your local machine
+   - For production, set these as environment variables in Vercel
 
 3. **Run the development server:**
    ```bash
@@ -47,11 +57,15 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
 
 ### Environment Variables
 
-In your Vercel project settings, add the following environment variable:
+In your Vercel project settings (Settings → Environment Variables), add the following:
 
-- **Name:** `VITE_ANTHROPIC_API_KEY`
-- **Value:** Your Anthropic Claude API key
-- **Scope:** Production, Preview, Development
+| Variable Name | Description | Where to Get It |
+|---------------|-------------|-----------------|
+| `VITE_ANTHROPIC_API_KEY` | Anthropic Claude API key | https://console.anthropic.com/settings/keys |
+| `VITE_SUPABASE_URL` | Supabase project URL | Supabase Dashboard → Settings → API |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key | Supabase Dashboard → Settings → API |
+
+**Scope:** Set all variables for Production, Preview, and Development
 
 ### Deployment
 
@@ -61,26 +75,43 @@ The app is configured to deploy automatically to Vercel when you push to the `ma
 
 ## Tech Stack
 
-- **React** 19.2.0
-- **TypeScript** 5.8.2
-- **Vite** 6.2.0
-- **Tailwind CSS** (CDN)
-- **Anthropic Claude** (@anthropic-ai/sdk)
-- **Lucide React** (icons)
+### Frontend
+- **React** 19.2.0 - UI framework
+- **TypeScript** 5.8.2 - Type safety
+- **Vite** 6.2.0 - Build tool
+- **Tailwind CSS** (CDN) - Styling
+
+### Backend & Services
+- **Supabase** (@supabase/supabase-js) - PostgreSQL database & real-time
+- **Anthropic Claude** (@anthropic-ai/sdk) - AI chatbot assistant
+- **Lucide React** - Icon library
 
 ## Project Structure
 
 ```
-├── App.tsx              # Main application component
-├── components/          # React components
-│   ├── Chatbot.tsx     # AI assistant
-│   ├── ProgressBar.tsx # Progress tracking
-│   └── WelcomeScreen.tsx # Completion screen
-├── types.ts            # TypeScript definitions
-├── constants.ts        # Survey sections and data
-├── vite.config.ts      # Vite configuration
-└── vercel.json         # Vercel deployment config
+├── App.tsx                 # Main application component
+├── components/             # React components
+│   ├── Chatbot.tsx        # AI assistant
+│   ├── ProgressBar.tsx    # Progress tracking
+│   └── WelcomeScreen.tsx  # Completion screen
+├── types.ts               # TypeScript definitions
+├── constants.ts           # Survey sections and data
+├── database.ts            # Supabase integration & data mapping
+├── supabaseClient.ts      # Supabase client configuration
+├── vite.config.ts         # Vite configuration
+├── vercel.json            # Vercel deployment config
+└── .env.local             # Environment variables (not in repo)
 ```
+
+## Database Schema
+
+The application uses Supabase PostgreSQL with the following table:
+
+**Table: `survey_responses`**
+- Stores all survey responses with auto-save
+- Tracks progress, completion status, and timestamps
+- Maps camelCase app fields to snake_case database columns
+- See `database.ts` for complete field mapping
 
 ## Documentation
 
