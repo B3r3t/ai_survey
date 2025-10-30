@@ -1,26 +1,56 @@
 import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import type { Plugin } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import type { ProxyRequestBody } from './lib/server/anthropic';
+import { runAnthropicChat } from './lib/server/anthropic';
 
-export default defineConfig(({ mode }) => {
-  // Load env file based on `mode` in the current working directory.
-  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
-  const env = loadEnv(mode, process.cwd(), '');
-
-  return {
-    server: {
-      port: 3000,
-      host: '0.0.0.0',
-    },
-    plugins: [react()],
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, '.'),
+const anthropicProxyPlugin = (): Plugin => ({
+  name: 'anthropic-proxy',
+  configureServer(server) {
+    server.middlewares.use('/api/anthropic-chat', async (req, res) => {
+      if (req.method !== 'POST') {
+        res.statusCode = 405;
+        res.setHeader('Allow', 'POST');
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+        return;
       }
-    },
-    // Explicitly define env variables to make them available in the app
-    define: {
-      'import.meta.env.VITE_ANTHROPIC_API_KEY': JSON.stringify(env.VITE_ANTHROPIC_API_KEY),
-    },
-  };
+
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+
+        const body = Buffer.concat(chunks).toString('utf8') || '{}';
+        const payload = JSON.parse(body) as ProxyRequestBody;
+        const apiKey = process.env.ANTHROPIC_API_KEY || '';
+        const reply = await runAnthropicChat(payload, apiKey);
+
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ reply }));
+      } catch (error: any) {
+        const message = error?.message ?? 'Unknown error';
+        const statusCode = message === 'Invalid request payload.' ? 400 : 500;
+        res.statusCode = statusCode;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: message }));
+      }
+    });
+  },
+});
+
+export default defineConfig({
+  server: {
+    port: 3000,
+    host: '0.0.0.0',
+  },
+  plugins: [react(), anthropicProxyPlugin()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, '.'),
+    }
+  },
 });
