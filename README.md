@@ -24,7 +24,7 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
    Create a `.env.local` file with the keys needed by both the frontend and the serverless proxy:
 
    ```ini
-   VITE_ANTHROPIC_API_KEY=your_actual_api_key_here
+   ANTHROPIC_API_KEY=your_actual_api_key_here
    VITE_SUPABASE_URL=https://your-project-ref.supabase.co
    VITE_SUPABASE_ANON_KEY=your_public_anon_key
    VITE_SURVEY_VERSION=1
@@ -53,7 +53,7 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
 
 In your Vercel project settings, add the following environment variables:
 
-- `VITE_ANTHROPIC_API_KEY` – Anthropic Claude API key for the serverless proxy
+- `ANTHROPIC_API_KEY` – Anthropic Claude API key for the serverless proxy
 - `VITE_SUPABASE_URL` – Supabase project URL
 - `VITE_SUPABASE_ANON_KEY` – Supabase anon (public) key
 - `VITE_SURVEY_VERSION` – Optional version string stored with each response
@@ -61,8 +61,6 @@ In your Vercel project settings, add the following environment variables:
 ### Deployment
 
 The app is configured to deploy automatically to Vercel when you push to the `main` branch. The `vercel.json` routing table keeps `/api/*` paths pointing at their serverless functions (such as `/api/anthropic-chat`) while every other request falls back to `index.html` for the single-page app shell.
-
-> ℹ️ The chatbot proxy first looks for `VITE_ANTHROPIC_API_KEY` (matching Vercel’s configuration) and falls back to `ANTHROPIC_API_KEY` so existing local setups keep working.
 
 **⚠️ Important:**
 

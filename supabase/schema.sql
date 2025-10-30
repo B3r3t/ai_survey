@@ -90,7 +90,6 @@ CREATE TABLE IF NOT EXISTS survey_responses (
   case_study_interest text,
   final_comments text,
   enter_drawing text,
-  survey_version text,
   first_name text,
   last_name text
 );

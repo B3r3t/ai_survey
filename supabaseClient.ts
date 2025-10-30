@@ -46,7 +46,6 @@ interface ResponseMetadata {
     currentSection?: string;
     progressPercentage?: number;
     completedAt?: string | null;
-    surveyVersion?: string | null;
 }
 
 const getUserAgent = (fallback?: string | null) => {
@@ -140,7 +139,6 @@ export const transformResponsesForDB = (
         case_study_interest: sanitized.caseStudyInterest || null,
         final_comments: sanitized.finalComments || null,
         enter_drawing: sanitized.enterDrawing || null,
-        survey_version: metadata.surveyVersion ?? surveyVersion,
         is_completed: metadata.isCompleted ?? false,
         completed_at: metadata.completedAt ?? null,
         progress_percentage: metadata.progressPercentage ?? 0,
