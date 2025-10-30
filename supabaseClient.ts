@@ -5,6 +5,7 @@ import { INITIAL_RESPONSES } from './constants';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const surveyVersion = import.meta.env.VITE_SURVEY_VERSION ?? null;
 
 if (!supabaseUrl || !supabaseAnonKey) {
     console.error('Missing Supabase environment variables');
