@@ -21,15 +21,19 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
 
 2. **Set up environment variables:**
 
-   Create a `.env.local` file and add your Anthropic API key (this is used by the backend proxy only):
-   ```
-   ANTHROPIC_API_KEY=your_actual_api_key_here
+   Create a `.env.local` file with the keys needed by both the frontend and the serverless proxy:
+
+   ```ini
+   VITE_ANTHROPIC_API_KEY=your_actual_api_key_here
+   VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+   VITE_SUPABASE_ANON_KEY=your_public_anon_key
+   VITE_SURVEY_VERSION=1
    ```
 
    **⚠️ IMPORTANT SECURITY NOTE:**
    - Never commit your API key to git
    - Revoke and regenerate your key if it's ever exposed
-   - The app now proxies chatbot traffic through `/api/anthropic-chat` so the key stays on the server
+   - The app proxies chatbot traffic through `/api/anthropic-chat` so the Anthropic key stays on the server
 
 3. **Run the development server:**
    ```bash
@@ -47,17 +51,23 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
 
 ### Environment Variables
 
-In your Vercel project settings, add the following environment variable:
+In your Vercel project settings, add the following environment variables:
 
-- **Name:** `ANTHROPIC_API_KEY`
-- **Value:** Your Anthropic Claude API key
-- **Scope:** Production, Preview, Development
+- `VITE_ANTHROPIC_API_KEY` – Anthropic Claude API key for the serverless proxy
+- `VITE_SUPABASE_URL` – Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` – Supabase anon (public) key
+- `VITE_SURVEY_VERSION` – Optional version string stored with each response
 
 ### Deployment
 
 The app is configured to deploy automatically to Vercel when you push to the `main` branch. The `vercel.json` routing table keeps `/api/*` paths pointing at their serverless functions (such as `/api/anthropic-chat`) while every other request falls back to `index.html` for the single-page app shell.
 
-**⚠️ Important:** See `CODEBASE_REVIEW.md` for critical security recommendations before deploying to production.
+> ℹ️ The chatbot proxy first looks for `VITE_ANTHROPIC_API_KEY` (matching Vercel’s configuration) and falls back to `ANTHROPIC_API_KEY` so existing local setups keep working.
+
+**⚠️ Important:**
+
+- Ensure your Supabase project has the `survey_responses` table defined in [`supabase/schema.sql`](supabase/schema.sql) before deploying.
+- See `CODEBASE_REVIEW.md` for critical security recommendations before deploying to production.
 
 ## Tech Stack
 
