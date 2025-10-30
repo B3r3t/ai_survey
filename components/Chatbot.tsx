@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { GoogleGenAI, Chat } from '@google/genai';
+import Anthropic from '@anthropic-ai/sdk';
 import { X, Send, Bot } from 'lucide-react';
 import { ChatMessage } from '../types';
 
@@ -9,37 +9,41 @@ interface ChatbotProps {
   onClose: () => void;
 }
 
+const SYSTEM_PROMPT = `You are a helpful AI assistant with deep expertise in the "AI in Franchising" report.
+Your primary goal is to help users fill out this survey.
+You must provide clarity on questions, offer context about AI concepts in the franchise industry, and guide them on how to best answer questions based on their situation.
+Be an expert on the intersection of AI and Franchising. Keep your answers concise and directly related to the survey.
+Do not answer questions that are not related to AI, franchising, or this survey.`;
+
 const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'model', content: "Hello! I'm your AI assistant for this survey. How can I help you understand the questions or the field of AI in franchising?" }
+    { role: 'assistant', content: "Hello! I'm your AI assistant for this survey. How can I help you understand the questions or the field of AI in franchising?" }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [chat, setChat] = useState<Chat | null>(null);
+  const [client, setClient] = useState<Anthropic | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const portalElement = document.getElementById('chatbot-portal');
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !client) {
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-            const newChat = ai.chats.create({
-                model: 'gemini-2.5-flash',
-                config: {
-                    systemInstruction: `You are a helpful AI assistant with deep expertise in the "AI in Franchising" report. 
-                    Your primary goal is to help users fill out this survey. 
-                    You must provide clarity on questions, offer context about AI concepts in the franchise industry, and guide them on how to best answer questions based on their situation.
-                    Be an expert on the intersection of AI and Franchising. Keep your answers concise and directly related to the survey.
-                    Do not answer questions that are not related to AI, franchising, or this survey.`,
-                },
+            const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+            if (!apiKey) {
+                setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, the API key is not configured. Please set VITE_ANTHROPIC_API_KEY in your environment variables."}]);
+                return;
+            }
+            const anthropic = new Anthropic({
+                apiKey,
+                dangerouslyAllowBrowser: true // Note: For production, use a backend proxy
             });
-            setChat(newChat);
+            setClient(anthropic);
         } catch (error) {
-            console.error("Failed to initialize Gemini:", error);
-            setMessages(prev => [...prev, { role: 'model', content: "Sorry, I couldn't connect to the AI service. Please check your API key."}]);
+            console.error("Failed to initialize Anthropic:", error);
+            setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I couldn't connect to the AI service. Please check your API key."}]);
         }
     }
-  }, [isOpen]);
+  }, [isOpen, client]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -47,9 +51,8 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
 
   useEffect(scrollToBottom, [messages]);
 
-  // FIX: Switched to sendMessageStream for a better, more responsive user experience.
   const handleSend = async () => {
-    if (!input.trim() || isLoading || !chat) return;
+    if (!input.trim() || isLoading || !client) return;
 
     const userMessage: ChatMessage = { role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
@@ -58,32 +61,48 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
     let streamingStarted = false;
 
     try {
-      const stream = await chat.sendMessageStream({ message: userMessage.content });
+      // Convert ChatMessage[] to Anthropic's message format
+      const apiMessages = messages
+        .filter(msg => msg.role !== 'assistant' || msg !== messages[0]) // Exclude initial greeting
+        .map(msg => ({
+          role: msg.role === 'assistant' ? 'assistant' as const : 'user' as const,
+          content: msg.content
+        }));
+
+      // Add the new user message
+      apiMessages.push({
+        role: 'user' as const,
+        content: userMessage.content
+      });
+
+      const stream = await client.messages.stream({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 1024,
+        system: SYSTEM_PROMPT,
+        messages: apiMessages,
+      });
 
       let text = '';
-      // Add a new empty message for the model to stream into.
-      setMessages(prev => [...prev, { role: 'model', content: '' }]);
+      // Add a new empty message for the assistant to stream into
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
       streamingStarted = true;
 
-      for await (const chunk of stream) {
-        text += chunk.text;
-        setMessages(prev => {
-          // Create a new array with the updated last message
-          // FIX: Explicitly type the new message object to prevent incorrect type inference for the 'role' property.
-          const newMessages: ChatMessage[] = [...prev.slice(0, -1), { role: 'model', content: text }];
-          return newMessages;
-        });
+      for await (const event of stream) {
+        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+          text += event.delta.text;
+          setMessages(prev => {
+            const newMessages: ChatMessage[] = [...prev.slice(0, -1), { role: 'assistant', content: text }];
+            return newMessages;
+          });
+        }
       }
     } catch (error) {
-      console.error('Gemini API error:', error);
-      const errorMessage: ChatMessage = { role: 'model', content: "Sorry, I encountered an error. Please try again." };
-      // FIX: Refactored state update to be more explicit and functional, ensuring correct type inference.
+      console.error('Anthropic API error:', error);
+      const errorMessage: ChatMessage = { role: 'assistant', content: "Sorry, I encountered an error. Please try again." };
       setMessages(prev => {
-        // If streaming started, replace the placeholder/partial message with an error.
         if (streamingStarted) {
             return [...prev.slice(0, -1), errorMessage];
         }
-        // Otherwise, just add the error message.
         return [...prev, errorMessage];
       });
     } finally {
