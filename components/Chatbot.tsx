@@ -8,11 +8,7 @@ interface ChatbotProps {
   onClose: () => void;
 }
 
-const SYSTEM_PROMPT = `You are a helpful AI assistant with deep expertise in the "AI in Franchising" report.
-Your primary goal is to help users fill out this survey.
-You must provide clarity on questions, offer context about AI concepts in the franchise industry, and guide them on how to best answer questions based on their situation.
-Be an expert on the intersection of AI and Franchising. Keep your answers concise and directly related to the survey.
-Do not answer questions that are not related to AI, franchising, or this survey.`;
+const SYSTEM_PROMPT = `You are a helpful AI survey assistant helping users navigate or explain the AI in franchising survey questions.`;
 
 const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -69,11 +65,16 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
         })
       });
 
+      const data: { reply?: string; error?: string } = await response
+        .json()
+        .catch(() => ({}));
+
       if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
+        throw new Error(
+          data?.error || `Request failed with status ${response.status}`
+        );
       }
 
-      const data: { reply?: string; error?: string } = await response.json();
       const reply = data.reply?.trim();
 
       if (!reply) {
@@ -86,7 +87,12 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
       });
     } catch (error) {
       console.error('Anthropic API error:', error);
-      const errorMessage: ChatMessage = { role: 'assistant', content: "Sorry, I encountered an error. Please try again." };
+      const details =
+        error instanceof Error && error.message ? ` (${error.message})` : '';
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: `Sorry, I ran into an error${details}. Please try again.`
+      };
       setMessages(prev => {
         if (placeholderAdded) {
             return [...prev.slice(0, -1), errorMessage];
