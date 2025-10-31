@@ -723,7 +723,7 @@ const App: React.FC = () => {
                 <header className="text-center mb-8">
                     <img src="https://dhqupibzlgpkwagmkjtg.supabase.co/storage/v1/object/public/images/Asset%201@4x-8.png" alt="Business Logo" className="h-16 mx-auto mb-4" />
                     <h1 className="text-3xl sm:text-4xl font-bold text-brand-dark-bg mb-2">2025 AI in Franchising Survey</h1>
-                    <p className="text-brand-gray-graphite">Thank you for contributing to this important industry research.</p>
+                    <p className="text-brand-gray-graphite">Thank you for contributing to our third annual AI in Franchising survey. Our goal is to share how AI is being used across the franchise industry. This survey covers topics like usuage, tools, implementation, investment and more. Thank you for taking the time to share your feedback.</p>
                 </header>
 
                 <div className="bg-white border border-brand-gray-smoke p-6 sm:p-8 rounded-xl shadow-lg">

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import Anthropic from '@anthropic-ai/sdk';
 import { X, Send, Bot } from 'lucide-react';
 import { ChatMessage } from '../types';
 
@@ -9,11 +8,7 @@ interface ChatbotProps {
   onClose: () => void;
 }
 
-const SYSTEM_PROMPT = `You are a helpful AI assistant with deep expertise in the "AI in Franchising" report.
-Your primary goal is to help users fill out this survey.
-You must provide clarity on questions, offer context about AI concepts in the franchise industry, and guide them on how to best answer questions based on their situation.
-Be an expert on the intersection of AI and Franchising. Keep your answers concise and directly related to the survey.
-Do not answer questions that are not related to AI, franchising, or this survey.`;
+const SYSTEM_PROMPT = `You are a helpful AI survey assistant helping users navigate or explain the AI in franchising survey questions.`;
 
 const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -21,29 +16,8 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [client, setClient] = useState<Anthropic | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const portalElement = document.getElementById('chatbot-portal');
-
-  useEffect(() => {
-    if (isOpen && !client) {
-        try {
-            const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-            if (!apiKey) {
-                setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, the API key is not configured. Please set VITE_ANTHROPIC_API_KEY in your environment variables."}]);
-                return;
-            }
-            const anthropic = new Anthropic({
-                apiKey,
-                dangerouslyAllowBrowser: true // Note: For production, use a backend proxy
-            });
-            setClient(anthropic);
-        } catch (error) {
-            console.error("Failed to initialize Anthropic:", error);
-            setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I couldn't connect to the AI service. Please check your API key."}]);
-        }
-    }
-  }, [isOpen, client]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -52,13 +26,13 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
   useEffect(scrollToBottom, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading || !client) return;
+    if (!input.trim() || isLoading) return;
 
     const userMessage: ChatMessage = { role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
-    let streamingStarted = false;
+    let placeholderAdded = false;
 
     try {
       // Convert ChatMessage[] to Anthropic's message format
@@ -75,32 +49,52 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
         content: userMessage.content
       });
 
-      const stream = await client.messages.stream({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 1024,
-        system: SYSTEM_PROMPT,
-        messages: apiMessages,
+      setMessages(prev => {
+        placeholderAdded = true;
+        return [...prev, { role: 'assistant', content: '…' }];
       });
 
-      let text = '';
-      // Add a new empty message for the assistant to stream into
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-      streamingStarted = true;
+      const response = await fetch('/api/anthropic-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          systemPrompt: SYSTEM_PROMPT,
+          messages: apiMessages
+        })
+      });
 
-      for await (const event of stream) {
-        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-          text += event.delta.text;
-          setMessages(prev => {
-            const newMessages: ChatMessage[] = [...prev.slice(0, -1), { role: 'assistant', content: text }];
-            return newMessages;
-          });
-        }
+      const data: { reply?: string; error?: string } = await response
+        .json()
+        .catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error || `Request failed with status ${response.status}`
+        );
       }
+
+      const reply = data.reply?.trim();
+
+      if (!reply) {
+        throw new Error(data.error || 'No reply received from assistant');
+      }
+
+      setMessages(prev => {
+        const updated = placeholderAdded ? prev.slice(0, -1) : prev;
+        return [...updated, { role: 'assistant', content: reply }];
+      });
     } catch (error) {
       console.error('Anthropic API error:', error);
-      const errorMessage: ChatMessage = { role: 'assistant', content: "Sorry, I encountered an error. Please try again." };
+      const details =
+        error instanceof Error && error.message ? ` (${error.message})` : '';
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: `Sorry, I ran into an error${details}. Please try again.`
+      };
       setMessages(prev => {
-        if (streamingStarted) {
+        if (placeholderAdded) {
             return [...prev.slice(0, -1), errorMessage];
         }
         return [...prev, errorMessage];
@@ -140,8 +134,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
           ))}
-          {/* FIX: Removed loading indicator dots as they are redundant with a streaming response. */}
-           <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} />
         </div>
 
         <div className="p-4 border-t border-brand-gray-smoke">
