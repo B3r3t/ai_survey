@@ -50,6 +50,8 @@ import {
 } from './surveyOptions';
 import { REVIEW_SECTIONS, formatReviewAnswer } from './reviewConfig';
 
+const getSectionIndexById = (id: string) => SECTIONS.findIndex(section => section.id === id);
+
 // --- Reusable Input Components ---
 
 const TextInput: React.FC<{label: string, value: string, onChange: (v: string) => void, required?: boolean, error?: string | null, placeholder?: string, type?: string, description?: string}> = 
@@ -634,6 +636,47 @@ const App: React.FC = () => {
         }
     }, [errors]);
 
+    const getNextSectionIndex = useCallback((sectionIndex: number) => {
+        const defaultNext = Math.min(sectionIndex + 1, SECTIONS.length - 1);
+        const currentId = SECTIONS[sectionIndex]?.id;
+
+        if (!currentId) {
+            return defaultNext;
+        }
+
+        if (currentId === 'tools') {
+            const notUsingAi = responses.aiTools.includes('not_using_ai');
+            if (notUsingAi) {
+                const targetIndex = getSectionIndexById('investment');
+                if (targetIndex > sectionIndex) {
+                    return targetIndex;
+                }
+            }
+        }
+
+        if (currentId === 'franchisee') {
+            const supportsFranchisees = ['yes_extensively', 'yes_moderately', 'yes_in_limited_ways'].includes(responses.franchiseeAiSupport);
+            if (!supportsFranchisees) {
+                const targetIndex = getSectionIndexById('investment');
+                if (targetIndex > sectionIndex) {
+                    return targetIndex;
+                }
+            }
+        }
+
+        if (currentId === 'customer') {
+            const hasCustomerFacingAi = ['yes_extensively', 'yes_moderately', 'yes_in_limited_ways'].includes(responses.customerFacingAi);
+            if (!hasCustomerFacingAi) {
+                const targetIndex = getSectionIndexById('future');
+                if (targetIndex > sectionIndex) {
+                    return targetIndex;
+                }
+            }
+        }
+
+        return defaultNext;
+    }, [responses.aiTools, responses.franchiseeAiSupport, responses.customerFacingAi]);
+
     const currentSectionId = SECTIONS[currentSection]?.id ?? SECTIONS[0].id;
     const highestVisitedSection = history.length
         ? Math.max(...history, currentSection)
@@ -805,7 +848,7 @@ const App: React.FC = () => {
                 checkRequired('customerFacingAi', 'This field is required.');
                 break;
             case 'future':
-                checkRequired('greatestAiPotential', 'Please select at least one area.');
+                checkRequired('greatestAiPotential', 'Please select an area.');
                 if (responses.greatestAiPotential === 'other') {
                     checkRequired('greatestAiPotentialOther', 'Please specify the area of greatest potential.');
                 }
@@ -837,11 +880,9 @@ const App: React.FC = () => {
     const handleNext = async () => {
         if (validateSection(currentSection)) {
             if (currentSection < SECTIONS.length - 1) {
-                const nextSection = currentSection + 1;
+                const nextSection = getNextSectionIndex(currentSection);
                 setCurrentSection(nextSection);
-                if (!history.includes(nextSection)) {
-                    setHistory(prev => [...prev, nextSection]);
-                }
+                setHistory(prev => (prev.includes(nextSection) ? prev : [...prev, nextSection]));
                 if (SECTIONS[nextSection].id === 'review') {
                     setOpenReviewSection(null);
                 }

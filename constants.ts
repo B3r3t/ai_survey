@@ -1,22 +1,25 @@
 import { Section, Responses, ProgressBarGroup } from './types';
 
+export const TOTAL_QUESTIONS = 44;
+export const ESTIMATED_TIME = '12-14 minutes';
+
 export const SECTIONS: Section[] = [
-  { id: 'demographics', name: 'Demographics', icon: '🏢', estimatedMinutes: 2 },
-  { id: 'usage', name: 'AI Usage & Frequency', icon: '📈', estimatedMinutes: 1 },
-  { id: 'tools', name: 'AI Tools & Platforms', icon: '🛠️', estimatedMinutes: 2 },
-  { id: 'corporate', name: 'Corporate AI Implementation', icon: '💼', estimatedMinutes: 1 },
-  { id: 'franchisee', name: 'Franchisee Support & Adoption', icon: '🤝', estimatedMinutes: 2 },
-  { id: 'investment', name: 'Investment & Budget', icon: '💰', estimatedMinutes: 1 },
-  { id: 'roi', name: 'ROI & Impact Measurement', icon: '📊', estimatedMinutes: 2 },
-  { id: 'challenges', name: 'Challenges & Barriers', icon: '⚡', estimatedMinutes: 2 },
-  { id: 'data', name: 'Data & Infrastructure', icon: '💾', estimatedMinutes: 1 },
-  { id: 'customer', name: 'Customer-Facing AI', icon: '💬', estimatedMinutes: 2 },
-  { id: 'future', name: 'Future Plans & Opportunities', icon: '🚀', estimatedMinutes: 2 },
-  { id: 'ethics', name: 'Ethics, Compliance & Risk', icon: '📜', estimatedMinutes: 1 },
-  { id: 'trends', name: 'Industry Trends & Insights', icon: '🌐', estimatedMinutes: 1 },
-  { id: 'satisfaction', name: 'Satisfaction & Comfort', icon: '😊', estimatedMinutes: 1 },
-  { id: 'closing', name: 'Report & Follow-up', icon: '📬', estimatedMinutes: 1 },
-  { id: 'review', name: 'Review', icon: '✅', estimatedMinutes: 1 },
+  { id: 'demographics', name: 'Demographics', icon: '🏢', estimatedMinutes: 2, questionCount: 6 },
+  { id: 'usage', name: 'AI Usage', icon: '📈', estimatedMinutes: 1, questionCount: 3 },
+  { id: 'tools', name: 'Tools', icon: '🛠️', estimatedMinutes: 2, questionCount: 3 },
+  { id: 'corporate', name: 'Corporate AI', icon: '💼', estimatedMinutes: 1, questionCount: 1 },
+  { id: 'franchisee', name: 'Franchisee Support', icon: '🤝', estimatedMinutes: 2, questionCount: 4 },
+  { id: 'investment', name: 'Investment', icon: '💰', estimatedMinutes: 1, questionCount: 3 },
+  { id: 'roi', name: 'ROI', icon: '📊', estimatedMinutes: 2, questionCount: 2 },
+  { id: 'challenges', name: 'Challenges', icon: '⚡', estimatedMinutes: 2, questionCount: 2 },
+  { id: 'data', name: 'Data Infrastructure', icon: '💾', estimatedMinutes: 1, questionCount: 3 },
+  { id: 'customer', name: 'Customer AI', icon: '💬', estimatedMinutes: 2, questionCount: 3 },
+  { id: 'future', name: 'Future Plans', icon: '🚀', estimatedMinutes: 2, questionCount: 3 },
+  { id: 'ethics', name: 'Ethics & Compliance', icon: '📜', estimatedMinutes: 1, questionCount: 4 },
+  { id: 'trends', name: 'Industry Trends', icon: '🌐', estimatedMinutes: 1, questionCount: 2 },
+  { id: 'satisfaction', name: 'Satisfaction', icon: '😊', estimatedMinutes: 1, questionCount: 2 },
+  { id: 'closing', name: 'Report & Follow-up', icon: '📬', estimatedMinutes: 1, questionCount: 3 },
+  { id: 'review', name: 'Review', icon: '✅', estimatedMinutes: 1, questionCount: 0 },
 ];
 
 export const PROGRESS_BAR_GROUPS: ProgressBarGroup[] = [

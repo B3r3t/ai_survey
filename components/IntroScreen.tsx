@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clock, Shield, FileText, ChevronRight } from 'lucide-react';
+import { ESTIMATED_TIME, TOTAL_QUESTIONS } from '../constants';
 
 interface IntroScreenProps {
     onStart: () => void;
@@ -48,8 +49,8 @@ const IntroScreen: React.FC<IntroScreenProps> = ({ onStart }) => {
                             <div className="w-14 h-14 bg-brand-orange rounded-xl flex items-center justify-center mb-4 shadow-md">
                                 <Clock className="w-7 h-7 text-white" />
                             </div>
-                            <h3 className="font-bold text-brand-dark-bg mb-2 text-lg">15-20 Minutes</h3>
-                            <p className="text-sm text-brand-gray-graphite">Complete at your own pace with auto-save</p>
+                            <h3 className="font-bold text-brand-dark-bg mb-2 text-lg">{ESTIMATED_TIME.replace('minutes', 'Minutes')}</h3>
+                            <p className="text-sm text-brand-gray-graphite">Complete {TOTAL_QUESTIONS} questions at your own pace with auto-save</p>
                         </div>
 
                         <div className="flex flex-col items-center text-center p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100">

@@ -3,6 +3,7 @@ export interface Section {
   name: string;
   icon: string;
   estimatedMinutes: number;
+  questionCount: number;
 }
 
 export interface ProgressBarGroup {
