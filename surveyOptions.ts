@@ -78,17 +78,6 @@ export const ORG_AI_USAGE_OPTIONS: Option[] = [
   { value: 'dont_know', label: "Don't know" },
 ];
 
-export const AI_ADOPTION_DATE_OPTIONS: Option[] = [
-  { value: '<2020', label: 'Before 2020' },
-  { value: '2020-2021', label: '2020-2021' },
-  { value: '2022', label: '2022' },
-  { value: '2023', label: '2023' },
-  { value: '2024', label: '2024' },
-  { value: '2025', label: '2025' },
-  { value: 'not_started', label: "Haven't started yet" },
-  { value: 'dont_know', label: "Don't know" },
-];
-
 export const AI_USAGE_CHANGE_OPTIONS: Option[] = [
   { value: 'increased_sig', label: 'Increased significantly' },
   { value: 'increased_mod', label: 'Increased moderately' },
@@ -146,37 +135,34 @@ export const AI_USE_CASE_OPTIONS: Option[] = [
   { value: 'other_specify', label: 'Other (please specify)' },
 ];
 
-export const CORPORATE_AI_USE_OPTIONS: Option[] = [
-  { value: 'marketing', label: 'Marketing & brand management' },
-  { value: 'content_creation', label: 'Content creation' },
-  { value: 'franchise_dev', label: 'Franchise development / sales' },
-  { value: 'ops_optimization', label: 'Operations optimization' },
-  { value: 'training', label: 'Training & education' },
-  { value: 'data_analysis', label: 'Data analysis & reporting' },
-  { value: 'customer_service', label: 'Customer service support' },
-  { value: 'finance', label: 'Financial planning & analysis' },
-  { value: 'tech_dev', label: 'Technology development' },
-  { value: 'hr', label: 'Human resources / recruitment' },
-  { value: 'legal', label: 'Legal & compliance' },
-  { value: 'supply_chain', label: 'Supply chain management' },
-  { value: 'real_estate', label: 'Real estate / site selection' },
-  { value: 'not_using_corp', label: 'Not using AI at corporate level', isExclusive: true },
-  { value: 'other_specify', label: 'Other (please specify)' },
+export interface MatrixDepartment {
+  id: string;
+  label: string;
+}
+
+export const CORPORATE_DEPARTMENT_ROWS: MatrixDepartment[] = [
+  { id: 'marketing', label: 'Marketing' },
+  { id: 'operations', label: 'Operations' },
+  { id: 'technology', label: 'Technology / IT' },
+  { id: 'finance', label: 'Finance' },
+  { id: 'franchise_development', label: 'Franchise Development' },
+  { id: 'training', label: 'Training & Education' },
+  { id: 'customer_service', label: 'Customer Service' },
+  { id: 'human_resources', label: 'Human Resources' },
+  { id: 'legal', label: 'Legal & Compliance' },
+  { id: 'executive_leadership', label: 'Executive Leadership' },
+  { id: 'supply_chain', label: 'Supply Chain' },
+  { id: 'real_estate', label: 'Real Estate / Site Selection' },
 ];
 
-export const TOP_DEPARTMENTS_AI_OPTIONS: Option[] = [
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'operations', label: 'Operations' },
-  { value: 'tech_it', label: 'Technology/IT' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'franchise_dev', label: 'Franchise Development' },
-  { value: 'training', label: 'Training & Education' },
-  { value: 'customer_service', label: 'Customer Service' },
-  { value: 'hr', label: 'Human Resources' },
-  { value: 'legal', label: 'Legal & Compliance' },
-  { value: 'executive', label: 'Executive Leadership' },
-  { value: 'product_dev', label: 'Product Development' },
-  { value: 'other', label: 'Other' },
+export const CORPORATE_PURPOSE_OPTIONS: Option[] = [
+  { value: 'content_creation', label: 'Content creation' },
+  { value: 'data_analysis_reporting', label: 'Data analysis & reporting' },
+  { value: 'process_automation', label: 'Process automation' },
+  { value: 'customer_service', label: 'Customer service' },
+  { value: 'training_materials', label: 'Training materials' },
+  { value: 'operational_insights', label: 'Operational insights' },
+  { value: 'not_using', label: 'Not using AI in this department', isExclusive: true },
 ];
 
 export const FRANCHISEE_AI_SUPPORT_OPTIONS: Option[] = [
@@ -241,18 +227,6 @@ export const AI_BUDGET_CHANGE_OPTIONS: Option[] = [
   { value: 'dont_know', label: "Don't know" },
 ];
 
-export const AI_BUDGET_SOURCE_OPTIONS: Option[] = [
-  { value: 'tech_it', label: 'Technology/IT budget' },
-  { value: 'marketing', label: 'Marketing budget' },
-  { value: 'operations', label: 'Operations budget' },
-  { value: 'innovation', label: 'Innovation/R&D budget' },
-  { value: 'dedicated_ai', label: 'Dedicated AI budget line item' },
-  { value: 'individual_dept', label: 'Individual department budgets' },
-  { value: 'no_formal', label: 'No formal budget allocation' },
-  { value: 'dont_know', label: "Don't know" },
-  { value: 'other_specify', label: 'Other (please specify)' },
-];
-
 export const AI_INVESTMENT_DECISION_MAKER_OPTIONS: Option[] = [
   { value: 'ceo', label: 'CEO/President' },
   { value: 'cto', label: 'CTO/VP Technology' },
@@ -284,34 +258,6 @@ export const MEASURED_IMPROVEMENTS_OPTIONS: Option[] = [
   { value: 'other_specify', label: 'Other (please specify)' },
 ];
 
-export const TIME_SAVINGS_OPTIONS: Option[] = [
-  { value: 'n/a', label: "Not applicable / Haven't measured" },
-  { value: 'no_imp', label: 'No improvement' },
-  { value: '1-10', label: '1-10% improvement' },
-  { value: '11-25', label: '11-25% improvement' },
-  { value: '26-50', label: '26-50% improvement' },
-  { value: '51-75', label: '51-75% improvement' },
-  { value: '>75', label: 'Over 75% improvement' },
-];
-
-export const COST_REDUCTION_OPTIONS: Option[] = [
-  { value: 'n/a', label: "Not applicable / Haven't measured" },
-  { value: 'no_red', label: 'No reduction' },
-  { value: '1-10', label: '1-10% reduction' },
-  { value: '11-25', label: '11-25% reduction' },
-  { value: '26-50', label: '26-50% reduction' },
-  { value: '>50', label: 'Over 50% reduction' },
-];
-
-export const REVENUE_IMPACT_OPTIONS: Option[] = [
-  { value: 'n/a', label: "Not applicable / Haven't measured" },
-  { value: 'no_imp', label: 'No impact' },
-  { value: '1-5', label: '1-5% increase' },
-  { value: '6-10', label: '6-10% increase' },
-  { value: '11-20', label: '11-20% increase' },
-  { value: '>20', label: 'Over 20% increase' },
-];
-
 export const CHALLENGES_OPTIONS: Option[] = [
   { value: 'privacy', label: 'Data privacy and security concerns' },
   { value: 'knowledge', label: 'Lack of understanding / knowledge' },
@@ -326,15 +272,6 @@ export const CHALLENGES_OPTIONS: Option[] = [
   { value: 'job_displacement', label: 'Concerns about job displacement' },
   { value: 'data_quality', label: 'Data quality / availability issues' },
   { value: 'no_challenges', label: 'No significant challenges' },
-];
-
-export const AI_KNOWLEDGE_LEVEL_OPTIONS: Option[] = [
-  { value: 'expert', label: 'Expert - We have deep AI expertise internally' },
-  { value: 'advanced', label: 'Advanced - Strong understanding and active implementation' },
-  { value: 'intermediate', label: 'Intermediate - Good understanding, early implementation' },
-  { value: 'beginner', label: 'Beginner - Learning but limited implementation' },
-  { value: 'novice', label: 'Novice - Just starting to explore AI' },
-  { value: 'no_knowledge', label: 'No knowledge - Not yet engaged with AI' },
 ];
 
 export const DEDICATED_AI_EXPERTISE_OPTIONS: Option[] = [
@@ -394,15 +331,6 @@ export const CUSTOMER_AI_INTERACTIONS_OPTIONS: Option[] = [
   { value: 'other_specify', label: 'Other (please specify)' },
 ];
 
-export const CUSTOMER_AI_DISCLOSURE_OPTIONS: Option[] = [
-  { value: 'always', label: 'Always clearly disclosed' },
-  { value: 'sometimes', label: 'Sometimes disclosed' },
-  { value: 'rarely', label: 'Rarely disclosed' },
-  { value: 'never', label: 'Never disclosed' },
-  { value: 'n/a', label: 'Not applicable' },
-  { value: 'dont_know', label: "Don't know" },
-];
-
 export const CUSTOMER_FEEDBACK_OPTIONS: Option[] = [
   { value: 'positive', label: 'Yes, mostly positive' },
   { value: 'mixed', label: 'Yes, mixed feedback' },
@@ -412,24 +340,30 @@ export const CUSTOMER_FEEDBACK_OPTIONS: Option[] = [
   { value: 'n/a', label: 'Not applicable' },
 ];
 
-export const AI_PRIORITIES_OPTIONS: Option[] = [
-  { value: 'ops_efficiency', label: 'Operational efficiency / cost reduction' },
+export const GREATEST_AI_POTENTIAL_SINGLE_OPTIONS: Option[] = [
+  { value: 'operational_efficiency', label: 'Operational efficiency / cost reduction' },
   { value: 'customer_experience', label: 'Customer experience enhancement' },
-  { value: 'marketing_automation', label: 'Marketing personalization & automation' },
+  { value: 'marketing_personalization', label: 'Marketing personalization & automation' },
   { value: 'data_analysis', label: 'Data analysis & business intelligence' },
-  { value: 'franchisee_support', label: 'Franchisee training & support' },
-  { value: 'no_priorities', label: 'No specific AI priorities' },
-];
-
-export const GREATEST_AI_POTENTIAL_OPTIONS: Option[] = [
-  { value: 'ops_efficiency', label: 'Operational efficiency / cost reduction' },
-  { value: 'customer_experience', label: 'Customer experience enhancement' },
-  { value: 'marketing_automation', label: 'Marketing personalization & automation' },
-  { value: 'data_analysis', label: 'Data analysis & business intelligence' },
-  { value: 'franchisee_support', label: 'Franchisee training & support' },
+  { value: 'franchisee_training', label: 'Franchisee training & support' },
+  { value: 'supply_chain', label: 'Supply chain optimization' },
+  { value: 'predictive_analytics', label: 'Predictive analytics' },
+  { value: 'employee_productivity', label: 'Employee productivity tools' },
+  { value: 'customer_service', label: 'Customer service automation' },
+  { value: 'content_management', label: 'Content creation & management' },
+  { value: 'fraud_detection', label: 'Fraud detection / security' },
+  { value: 'quality_control', label: 'Quality control / compliance' },
+  { value: 'innovation', label: 'Innovation / new product development' },
   { value: 'site_selection', label: 'Site selection / territory planning' },
   { value: 'dynamic_pricing', label: 'Dynamic pricing' },
   { value: 'voice_ai', label: 'Voice AI / conversational interfaces' },
+  { value: 'computer_vision', label: 'Computer vision / visual inspection' },
+  { value: 'autonomous_systems', label: 'Autonomous systems' },
+  { value: 'predictive_maintenance', label: 'Predictive maintenance' },
+  { value: 'personalized_marketing', label: 'Personalized marketing at scale' },
+  { value: 'automated_compliance', label: 'Automated compliance monitoring' },
+  { value: 'not_sure', label: 'Not sure / still exploring' },
+  { value: 'other', label: 'Other (please specify)' },
 ];
 
 export const INCREASE_AI_INVESTMENT_OPTIONS: Option[] = [

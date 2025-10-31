@@ -7,37 +7,29 @@ import {
   ANNUAL_REVENUE_OPTIONS,
   PERSONAL_AI_USAGE_OPTIONS,
   ORG_AI_USAGE_OPTIONS,
-  AI_ADOPTION_DATE_OPTIONS,
   AI_USAGE_CHANGE_OPTIONS,
   AI_TOOL_OPTIONS,
   PRIMARY_AI_TOOL_OPTIONS,
   AI_USE_CASE_OPTIONS,
-  CORPORATE_AI_USE_OPTIONS,
-  TOP_DEPARTMENTS_AI_OPTIONS,
+  CORPORATE_DEPARTMENT_ROWS,
+  CORPORATE_PURPOSE_OPTIONS,
   FRANCHISEE_AI_SUPPORT_OPTIONS,
   FRANCHISEE_SUPPORT_METHOD_OPTIONS,
   FRANCHISEE_ADOPTION_RATE_OPTIONS,
   FRANCHISEE_AI_LEARNING_OPTIONS,
   ANNUAL_AI_BUDGET_OPTIONS,
   AI_BUDGET_CHANGE_OPTIONS,
-  AI_BUDGET_SOURCE_OPTIONS,
   AI_INVESTMENT_DECISION_MAKER_OPTIONS,
   MEASURED_ROI_OPTIONS,
   MEASURED_IMPROVEMENTS_OPTIONS,
-  TIME_SAVINGS_OPTIONS,
-  COST_REDUCTION_OPTIONS,
-  REVENUE_IMPACT_OPTIONS,
   CHALLENGES_OPTIONS,
-  AI_KNOWLEDGE_LEVEL_OPTIONS,
   DEDICATED_AI_EXPERTISE_OPTIONS,
   CENTRALIZED_DATA_PLATFORM_OPTIONS,
   DATA_SOURCES_OPTIONS,
   CUSTOMER_FACING_AI_OPTIONS,
   CUSTOMER_AI_INTERACTIONS_OPTIONS,
-  CUSTOMER_AI_DISCLOSURE_OPTIONS,
   CUSTOMER_FEEDBACK_OPTIONS,
-  AI_PRIORITIES_OPTIONS,
-  GREATEST_AI_POTENTIAL_OPTIONS,
+  GREATEST_AI_POTENTIAL_SINGLE_OPTIONS,
   INCREASE_AI_INVESTMENT_OPTIONS,
   ADOPTION_ACCELERATORS_OPTIONS,
   AI_POLICY_OPTIONS,
@@ -61,37 +53,28 @@ const OPTION_LABELS = {
   annualRevenue: buildOptionMap(ANNUAL_REVENUE_OPTIONS),
   personalAiUsage: buildOptionMap(PERSONAL_AI_USAGE_OPTIONS),
   orgAiUsage: buildOptionMap(ORG_AI_USAGE_OPTIONS),
-  aiAdoptionDate: buildOptionMap(AI_ADOPTION_DATE_OPTIONS),
   aiUsageChange: buildOptionMap(AI_USAGE_CHANGE_OPTIONS),
   aiTools: buildOptionMap(AI_TOOL_OPTIONS),
   primaryAiTool: buildOptionMap(PRIMARY_AI_TOOL_OPTIONS),
   aiUseCases: buildOptionMap(AI_USE_CASE_OPTIONS),
-  corporateAiUse: buildOptionMap(CORPORATE_AI_USE_OPTIONS),
-  topDepartmentsAi: buildOptionMap(TOP_DEPARTMENTS_AI_OPTIONS),
+  corporatePurposes: buildOptionMap(CORPORATE_PURPOSE_OPTIONS),
   franchiseeAiSupport: buildOptionMap(FRANCHISEE_AI_SUPPORT_OPTIONS),
   franchiseeSupportMethods: buildOptionMap(FRANCHISEE_SUPPORT_METHOD_OPTIONS),
   franchiseeAdoptionRate: buildOptionMap(FRANCHISEE_ADOPTION_RATE_OPTIONS),
   franchiseeAiLearning: buildOptionMap(FRANCHISEE_AI_LEARNING_OPTIONS),
   annualAiBudget: buildOptionMap(ANNUAL_AI_BUDGET_OPTIONS),
   aiBudgetChange: buildOptionMap(AI_BUDGET_CHANGE_OPTIONS),
-  aiBudgetSource: buildOptionMap(AI_BUDGET_SOURCE_OPTIONS),
   aiInvestmentDecisionMaker: buildOptionMap(AI_INVESTMENT_DECISION_MAKER_OPTIONS),
   measuredRoi: buildOptionMap(MEASURED_ROI_OPTIONS),
   measuredImprovements: buildOptionMap(MEASURED_IMPROVEMENTS_OPTIONS),
-  timeSavings: buildOptionMap(TIME_SAVINGS_OPTIONS),
-  costReduction: buildOptionMap(COST_REDUCTION_OPTIONS),
-  revenueImpact: buildOptionMap(REVENUE_IMPACT_OPTIONS),
   challengesRanked: buildOptionMap(CHALLENGES_OPTIONS),
-  aiKnowledgeLevel: buildOptionMap(AI_KNOWLEDGE_LEVEL_OPTIONS),
   dedicatedAiExpertise: buildOptionMap(DEDICATED_AI_EXPERTISE_OPTIONS),
   centralizedDataPlatform: buildOptionMap(CENTRALIZED_DATA_PLATFORM_OPTIONS),
   dataSources: buildOptionMap(DATA_SOURCES_OPTIONS),
   customerFacingAi: buildOptionMap(CUSTOMER_FACING_AI_OPTIONS),
   customerAiInteractions: buildOptionMap(CUSTOMER_AI_INTERACTIONS_OPTIONS),
-  customerAiDisclosure: buildOptionMap(CUSTOMER_AI_DISCLOSURE_OPTIONS),
   customerFeedback: buildOptionMap(CUSTOMER_FEEDBACK_OPTIONS),
-  aiPriorities: buildOptionMap(AI_PRIORITIES_OPTIONS),
-  greatestAiPotential: buildOptionMap(GREATEST_AI_POTENTIAL_OPTIONS),
+  greatestAiPotential: buildOptionMap(GREATEST_AI_POTENTIAL_SINGLE_OPTIONS),
   increaseAiInvestment2026: buildOptionMap(INCREASE_AI_INVESTMENT_OPTIONS),
   adoptionAccelerators: buildOptionMap(ADOPTION_ACCELERATORS_OPTIONS),
   aiPolicy: buildOptionMap(AI_POLICY_OPTIONS),
@@ -132,6 +115,14 @@ type ScaleQuestion = {
   max?: number;
 };
 
+type MatrixQuestion = {
+  type: 'matrix';
+  field: keyof Responses;
+  question: string;
+  rowLabels: { id: string; label: string }[];
+  optionKey: keyof typeof OPTION_LABELS;
+};
+
 type TextQuestion = {
   type: 'text' | 'textarea';
   field: keyof Responses;
@@ -143,6 +134,7 @@ export type ReviewQuestion =
   | MultiChoiceQuestion
   | RankingQuestion
   | ScaleQuestion
+  | MatrixQuestion
   | TextQuestion;
 
 export interface ReviewSectionConfig {
@@ -208,6 +200,33 @@ const formatScale = (responses: Responses, question: ScaleQuestion): string => {
   return `${value} / ${question.max ?? 5}`;
 };
 
+const formatMatrix = (responses: Responses, question: MatrixQuestion): string[] | string => {
+  const matrix = responses[question.field] as Record<string, string[]> | undefined;
+  if (!matrix || Object.keys(matrix).length === 0) {
+    return 'Not answered';
+  }
+
+  const rowLabelMap = question.rowLabels.reduce<Record<string, string>>((acc, row) => {
+    acc[row.id] = row.label;
+    return acc;
+  }, {});
+
+  const rows = question.rowLabels.map((row) => {
+    const selections = matrix[row.id];
+    if (!selections || selections.length === 0) {
+      return null;
+    }
+
+    const formattedSelections = selections.map(
+      (value) => OPTION_LABELS[question.optionKey][value] ?? value,
+    ).join(', ');
+
+    return `${rowLabelMap[row.id] ?? row.id}: ${formattedSelections}`;
+  }).filter((entry): entry is string => Boolean(entry));
+
+  return rows.length > 0 ? rows : 'Not answered';
+};
+
 const formatText = (responses: Responses, question: TextQuestion): string => {
   const value = responses[question.field] as string;
   return value?.trim() ? value.trim() : 'Not answered';
@@ -226,6 +245,8 @@ export const formatReviewAnswer = (
       return formatRanking(responses, question);
     case 'scale':
       return formatScale(responses, question);
+    case 'matrix':
+      return formatMatrix(responses, question);
     case 'text':
     case 'textarea':
       return formatText(responses, question);
@@ -241,30 +262,29 @@ export const REVIEW_SECTIONS: ReviewSectionConfig[] = [
     questions: [
       { type: 'text', field: 'email', question: 'Q1. Email Address' },
       { type: 'text', field: 'companyName', question: 'Q2. Company/Brand Name' },
-      { type: 'single', field: 'industry', question: 'Q3. Industry', optionKey: 'industry', otherField: 'industryOther' },
-      { type: 'single', field: 'role', question: 'Q4. Role/Title', optionKey: 'role', otherField: 'roleOther' },
-      { type: 'single', field: 'unitCount', question: "Q5. Franchise Unit Count", optionKey: 'unitCount' },
-      { type: 'single', field: 'annualRevenue', question: "Q6. Annual System-Wide Revenue", optionKey: 'annualRevenue' },
+      { type: 'single', field: 'industry', question: 'Q3. What industry is your franchise brand in?', optionKey: 'industry', otherField: 'industryOther' },
+      { type: 'single', field: 'role', question: 'Q4. What is your role/title?', optionKey: 'role', otherField: 'roleOther' },
+      { type: 'single', field: 'unitCount', question: 'Q5. How many franchise units does your brand have?', optionKey: 'unitCount' },
+      { type: 'single', field: 'annualRevenue', question: "Q6. What is your brand's annual system-wide revenue?", optionKey: 'annualRevenue' },
     ],
   },
   {
     id: 'usage',
-    name: 'Usage',
+    name: 'AI Usage & Frequency',
     questions: [
-      { type: 'single', field: 'personalAiUsage', question: 'Q7. Personal AI Usage Frequency', optionKey: 'personalAiUsage' },
-      { type: 'single', field: 'orgAiUsage', question: 'Q8. Organizational AI Usage Frequency', optionKey: 'orgAiUsage' },
-      { type: 'single', field: 'aiAdoptionDate', question: 'Q9. AI Adoption Start', optionKey: 'aiAdoptionDate' },
-      { type: 'single', field: 'aiUsageChange', question: 'Q10. AI Usage Change in Past 12 Months', optionKey: 'aiUsageChange' },
+      { type: 'single', field: 'personalAiUsage', question: 'Q7. How often are you personally using AI tools?', optionKey: 'personalAiUsage' },
+      { type: 'single', field: 'orgAiUsage', question: 'Q8. How often is your organization using AI tools?', optionKey: 'orgAiUsage' },
+      { type: 'single', field: 'aiUsageChange', question: 'Q9. How has your AI usage changed in the past 12 months?', optionKey: 'aiUsageChange' },
     ],
   },
   {
     id: 'tools',
-    name: 'Tools',
+    name: 'AI Tools & Platforms',
     questions: [
       {
         type: 'multi',
         field: 'aiTools',
-        question: 'Q11. AI Tools in Use',
+        question: 'Q10. Which AI tools or platforms is your organization currently using?',
         optionKey: 'aiTools',
         otherFields: {
           'industry-specific_specify': 'aiToolsIndustrySpecific',
@@ -275,13 +295,13 @@ export const REVIEW_SECTIONS: ReviewSectionConfig[] = [
       {
         type: 'single',
         field: 'primaryAiTool',
-        question: 'Q12. Primary AI Platform',
+        question: 'Q11. What is the primary AI model/platform your organization relies on most?',
         optionKey: 'primaryAiTool',
       },
       {
         type: 'multi',
         field: 'aiUseCases',
-        question: 'Q13. AI Use Cases',
+        question: 'Q12. For what purposes do you use AI tools?',
         optionKey: 'aiUseCases',
         otherFields: {
           other_specify: 'aiUseCasesOther',
@@ -291,39 +311,31 @@ export const REVIEW_SECTIONS: ReviewSectionConfig[] = [
   },
   {
     id: 'corporate',
-    name: 'Corporate AI',
+    name: 'Corporate AI Implementation',
     questions: [
       {
-        type: 'multi',
-        field: 'corporateAiUse',
-        question: 'Q14. Corporate AI Applications',
-        optionKey: 'corporateAiUse',
-        otherFields: {
-          other_specify: 'corporateAiUseOther',
-        },
-      },
-      {
-        type: 'ranking',
-        field: 'topDepartmentsAi',
-        question: 'Q15. Top Corporate Departments Using AI',
-        optionKey: 'topDepartmentsAi',
+        type: 'matrix',
+        field: 'corporateAiMatrix',
+        question: 'Q13. Which departments at your corporate office are using AI, and for what purposes?',
+        rowLabels: CORPORATE_DEPARTMENT_ROWS,
+        optionKey: 'corporatePurposes',
       },
     ],
   },
   {
     id: 'franchisee',
-    name: 'Franchisee AI',
+    name: 'Franchisee Support & Adoption',
     questions: [
       {
         type: 'single',
         field: 'franchiseeAiSupport',
-        question: 'Q16. AI Support for Franchisees',
+        question: 'Q14. Are you currently using AI to support your franchisees?',
         optionKey: 'franchiseeAiSupport',
       },
       {
         type: 'multi',
         field: 'franchiseeSupportMethods',
-        question: 'Q17. Franchisee AI Support Methods',
+        question: 'Q15. How are you supporting franchisees with AI?',
         optionKey: 'franchiseeSupportMethods',
         otherFields: {
           other_specify: 'franchiseeSupportMethodsOther',
@@ -332,13 +344,13 @@ export const REVIEW_SECTIONS: ReviewSectionConfig[] = [
       {
         type: 'single',
         field: 'franchiseeAdoptionRate',
-        question: 'Q18. Franchisee AI Adoption Rate',
+        question: 'Q16. What percentage of your franchisees are actively using AI tools?',
         optionKey: 'franchiseeAdoptionRate',
       },
       {
         type: 'multi',
         field: 'franchiseeAiLearning',
-        question: 'Q19. Franchisee AI Learning Sources',
+        question: 'Q17. How do franchisees primarily learn about AI tools?',
         optionKey: 'franchiseeAiLearning',
         otherFields: {
           other_specify: 'franchiseeAiLearningOther',
@@ -348,95 +360,72 @@ export const REVIEW_SECTIONS: ReviewSectionConfig[] = [
   },
   {
     id: 'investment',
-    name: 'Investment',
+    name: 'Investment & Budget',
     questions: [
-      { type: 'single', field: 'annualAiBudget', question: 'Q20. 2025 AI Budget', optionKey: 'annualAiBudget' },
-      { type: 'single', field: 'aiBudgetChange', question: 'Q21. AI Budget Change from 2024', optionKey: 'aiBudgetChange' },
-      {
-        type: 'multi',
-        field: 'aiBudgetSource',
-        question: 'Q22. AI Budget Sources',
-        optionKey: 'aiBudgetSource',
-        otherFields: {
-          other_specify: 'aiBudgetSourceOther',
-        },
-      },
+      { type: 'single', field: 'annualAiBudget', question: "Q18. What is your organization's annual AI investment/budget for 2025?", optionKey: 'annualAiBudget' },
+      { type: 'single', field: 'aiBudgetChange', question: 'Q19. How has your AI budget changed from 2024 to 2025?', optionKey: 'aiBudgetChange' },
       {
         type: 'single',
         field: 'aiInvestmentDecisionMaker',
-        question: 'Q23. Primary AI Investment Decision-Maker',
+        question: 'Q20. Who has primary responsibility for AI investment decisions?',
         optionKey: 'aiInvestmentDecisionMaker',
-        otherField: 'aiInvestmentDecisionMakerOther',
       },
     ],
   },
   {
     id: 'roi',
-    name: 'ROI',
+    name: 'ROI & Impact Measurement',
     questions: [
       {
         type: 'single',
         field: 'measuredRoi',
-        question: 'Q24. Measured AI ROI',
+        question: 'Q21. Have you measured ROI or business impact from AI implementation?',
         optionKey: 'measuredRoi',
       },
       {
         type: 'multi',
         field: 'measuredImprovements',
-        question: 'Q25. Measurable Improvements from AI',
+        question: 'Q22. What measurable improvements have you seen from AI adoption?',
         optionKey: 'measuredImprovements',
         otherFields: {
           other_specify: 'measuredImprovementsOther',
         },
       },
-      { type: 'single', field: 'timeSavings', question: 'Q26a. Time Savings Impact', optionKey: 'timeSavings' },
-      { type: 'single', field: 'costReduction', question: 'Q26b. Cost Reduction Impact', optionKey: 'costReduction' },
-      { type: 'single', field: 'revenueImpact', question: 'Q26c. Revenue Impact', optionKey: 'revenueImpact' },
     ],
   },
   {
     id: 'challenges',
-    name: 'Challenges',
+    name: 'Challenges & Barriers',
     questions: [
       {
         type: 'ranking',
         field: 'challengesRanked',
-        question: 'Q27. Biggest AI Implementation Challenges',
+        question: 'Q23. What are the biggest challenges your organization faces with AI implementation? (Rank top 5)',
         optionKey: 'challengesRanked',
       },
       {
         type: 'single',
-        field: 'aiKnowledgeLevel',
-        question: "Q28. Organization's AI Knowledge Level",
-        optionKey: 'aiKnowledgeLevel',
-      },
-      {
-        type: 'single',
         field: 'dedicatedAiExpertise',
-        question: 'Q29. Dedicated AI Expertise',
+        question: 'Q24. Do you have dedicated AI expertise on your team?',
         optionKey: 'dedicatedAiExpertise',
       },
     ],
   },
   {
     id: 'data',
-    name: 'Data',
+    name: 'Data & Infrastructure',
     questions: [
-      {
-        type: 'scale',
-        field: 'dataInfrastructureReadiness',
-        question: 'Q30. Data Infrastructure Readiness (1-5)',
-      },
+      { type: 'scale', field: 'dataInfrastructureReadiness', question: "Q25. How would you rate your organization's data infrastructure readiness for AI? (1-5 scale)", max: 5 },
       {
         type: 'single',
         field: 'centralizedDataPlatform',
-        question: 'Q31. Centralized Data Platform Usage',
+        question: 'Q26. Do you use a centralized data platform or data warehouse?',
         optionKey: 'centralizedDataPlatform',
       },
       {
         type: 'multi',
         field: 'dataSources',
-        question: 'Q32. Data Sources Used for AI',
+        question: 'Q27. What data sources are you using for AI?',
         optionKey: 'dataSources',
         otherFields: {
           other_specify: 'dataSourcesOther',
@@ -446,18 +435,18 @@ export const REVIEW_SECTIONS: ReviewSectionConfig[] = [
   },
   {
     id: 'customer',
-    name: 'Customer AI',
+    name: 'Customer-Facing AI',
     questions: [
       {
         type: 'single',
         field: 'customerFacingAi',
-        question: 'Q33. Customer-Facing AI Usage',
+        question: 'Q28. Do you use AI in customer-facing applications?',
         optionKey: 'customerFacingAi',
       },
       {
         type: 'multi',
         field: 'customerAiInteractions',
-        question: 'Q34. Customer AI Interactions',
+        question: 'Q29. How do customers interact with AI at your locations?',
         optionKey: 'customerAiInteractions',
         otherFields: {
           other_specify: 'customerAiInteractionsOther',
@@ -465,110 +454,112 @@ export const REVIEW_SECTIONS: ReviewSectionConfig[] = [
       },
       {
         type: 'single',
-        field: 'customerAiDisclosure',
-        question: "Q35. Customer Awareness of AI Interactions",
-        optionKey: 'customerAiDisclosure',
-      },
-      {
-        type: 'single',
         field: 'customerFeedback',
-        question: 'Q36. Customer Feedback on AI',
+        question: 'Q30. Have you received feedback from customers about AI interactions?',
         optionKey: 'customerFeedback',
       },
     ],
   },
   {
     id: 'future',
-    name: 'Future Plans',
+    name: 'Future Plans & Opportunities',
     questions: [
       {
-        type: 'ranking',
-        field: 'aiPriorities',
-        question: "Q37. Top AI Priorities for the Next 12 Months",
-        optionKey: 'aiPriorities',
-      },
-      {
-        type: 'multi',
+        type: 'single',
         field: 'greatestAiPotential',
-        question: 'Q38. Greatest Potential for AI',
+        question: 'Q31. Where do you see the greatest potential for AI specifically at your brand?',
         optionKey: 'greatestAiPotential',
+        otherField: 'greatestAiPotentialOther',
       },
       {
         type: 'single',
         field: 'increaseAiInvestment2026',
-        question: 'Q39. Likelihood of Increasing AI Investment in 2026',
+        question: 'Q32. How likely is your organization to increase AI investment in 2026?',
         optionKey: 'increaseAiInvestment2026',
       },
       {
         type: 'ranking',
         field: 'adoptionAccelerators',
-        question: 'Q40. AI Adoption Accelerators',
+        question: 'Q33. What would most accelerate AI adoption in your organization? (Rank top 3)',
         optionKey: 'adoptionAccelerators',
       },
     ],
   },
   {
     id: 'ethics',
-    name: 'Ethics & Risk',
+    name: 'Ethics, Compliance & Risk',
     questions: [
       {
         type: 'single',
         field: 'aiPolicy',
-        question: 'Q41. Formal AI Policies',
+        question: 'Q34. Does your organization have formal policies governing AI use?',
         optionKey: 'aiPolicy',
       },
       {
         type: 'multi',
         field: 'ethicalConcerns',
-        question: 'Q42. Ethical Concerns About AI',
+        question: 'Q35. What ethical considerations concern you about AI?',
         optionKey: 'ethicalConcerns',
         otherFields: {
           other_specify: 'ethicalConcernsOther',
         },
       },
-      {
-        type: 'scale',
-        field: 'jobImpactConcern',
-        question: "Q43. Concern About AI's Impact on Jobs (1-5)",
-      },
+      { type: 'scale', field: 'jobImpactConcern', question: "Q36. How concerned are you about AI's impact on jobs within your organization? (1-5 scale)", max: 5 },
       {
         type: 'single',
         field: 'aiForCompliance',
-        question: 'Q44. AI for Compliance/Regulatory Monitoring',
+        question: 'Q37. Are you using AI for compliance or risk management?',
         optionKey: 'aiForCompliance',
       },
     ],
   },
   {
     id: 'trends',
-    name: 'Trends',
+    name: 'Industry Trends & Insights',
     questions: [
       {
         type: 'single',
         field: 'competitorComparison',
-        question: "Q45. AI Adoption Compared to Competitors",
+        question: "Q38. How would you describe your organization's approach to AI compared to competitors?",
         optionKey: 'competitorComparison',
       },
-      { type: 'textarea', field: 'excitingAiTrend', question: "Q46. Exciting AI Trends You're Watching" },
-      { type: 'textarea', field: 'questionsToAnswer', question: 'Q47. Key Questions You Are Trying to Answer with AI' },
+      {
+        type: 'textarea',
+        field: 'excitingAiTrend',
+        question: 'Q39. What AI trend are you most excited or concerned about for franchising?',
+      },
     ],
   },
   {
     id: 'satisfaction',
-    name: 'Satisfaction',
+    name: 'Satisfaction & Comfort',
     questions: [
-      { type: 'scale', field: 'personalAiComfort', question: 'Q48. Personal Comfort with AI (1-5)' },
-      { type: 'scale', field: 'toolSatisfaction', question: 'Q49. Satisfaction with AI Tools (1-5)' },
-      { type: 'textarea', field: 'desiredAiCapabilities', question: 'Q50. Desired Capabilities for AI Tools' },
+      { type: 'scale', field: 'personalAiComfort', question: 'Q40. How comfortable are you personally with using AI tools? (1-5 scale)', max: 5 },
+      { type: 'textarea', field: 'desiredAiCapabilities', question: 'Q41. What AI capabilities are you most hoping to see developed for franchising?' },
     ],
   },
   {
     id: 'closing',
-    name: 'Closing Questions',
+    name: 'Report & Follow-up',
     questions: [
-      { type: 'single', field: 'receiveReport', question: 'Q51. Receive 2025 Report?', optionKey: 'receiveReport' },
-      { type: 'textarea', field: 'surveyFeedback', question: 'Q52. Feedback & Knowledge Gaps' },
-      { type: 'single', field: 'agntmktFollowUp', question: 'Q53. Request AGNTMKT Follow-Up', optionKey: 'agntmktFollowUp' },
+      {
+        type: 'single',
+        field: 'receiveReport',
+        question: 'Q42. Would you like to receive a complimentary copy of the 2025 AI in Franchising Report?',
+        optionKey: 'receiveReport',
+      },
+      {
+        type: 'textarea',
+        field: 'surveyFeedback',
+        question: "Q43. Is there anything about AI in franchising you'd like to know more about, or a topic we didn't ask about that we should have included?",
+      },
+      {
+        type: 'single',
+        field: 'agntmktFollowUp',
+        question: 'Q44. AGNTMKT puts out this report every year completely free because we believe in franchising and the power of sharing ideas. If you\'re not sure where to start with AI, we\'d love an opportunity to meet with you and share our solutions - or check out our website at agntmkt.ai. Would you like us to follow up with you?',
+        optionKey: 'agntmktFollowUp',
+      },
     ],
   },
 ];
+

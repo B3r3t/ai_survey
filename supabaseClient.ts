@@ -63,6 +63,13 @@ export const transformResponsesForDB = (
 ): Record<string, unknown> => {
     const sanitized = sanitizeResponses(responses);
 
+    const corporateMatrixEntries = Object.entries(sanitized.corporateAiMatrix ?? {}).reduce<Record<string, string[]>>((acc, [dept, selections]) => {
+        if (Array.isArray(selections) && selections.length > 0) {
+            acc[dept] = selections;
+        }
+        return acc;
+    }, {});
+
     const dbPayload: Record<string, unknown> = {
         session_id: sessionId,
         survey_version: metadata.surveyVersion ?? surveyVersion ?? '2025',
@@ -76,7 +83,6 @@ export const transformResponsesForDB = (
         annual_revenue: sanitized.annualRevenue,
         personal_ai_usage: sanitized.personalAiUsage,
         org_ai_usage: sanitized.orgAiUsage,
-        ai_adoption_date: sanitized.aiAdoptionDate,
         ai_usage_change: sanitized.aiUsageChange,
         ai_tools: cleanArray(sanitized.aiTools || []),
         ai_tools_industry_specific: sanitized.aiToolsIndustrySpecific || null,
@@ -85,9 +91,7 @@ export const transformResponsesForDB = (
         primary_ai_tool: sanitized.primaryAiTool || null,
         ai_use_cases: cleanArray(sanitized.aiUseCases || []),
         ai_use_cases_other: sanitized.aiUseCasesOther || null,
-        corporate_ai_use: cleanArray(sanitized.corporateAiUse || []),
-        corporate_ai_use_other: sanitized.corporateAiUseOther || null,
-        top_departments_ai: cleanArray(sanitized.topDepartmentsAi || []),
+        corporate_ai_matrix: Object.keys(corporateMatrixEntries).length > 0 ? corporateMatrixEntries : null,
         franchisee_ai_support: sanitized.franchiseeAiSupport,
         franchisee_support_methods: cleanArray(sanitized.franchiseeSupportMethods || []),
         franchisee_support_methods_other: sanitized.franchiseeSupportMethodsOther || null,
@@ -96,19 +100,13 @@ export const transformResponsesForDB = (
         franchisee_ai_learning_other: sanitized.franchiseeAiLearningOther || null,
         annual_ai_budget: sanitized.annualAiBudget || null,
         ai_budget_change: sanitized.aiBudgetChange || null,
-        ai_budget_source: cleanArray(sanitized.aiBudgetSource || []),
-        ai_budget_source_other: sanitized.aiBudgetSourceOther || null,
         ai_investment_decision_maker: sanitized.aiInvestmentDecisionMaker || null,
         ai_investment_decision_maker_other: sanitized.aiInvestmentDecisionMakerOther || null,
         measured_roi: sanitized.measuredRoi || null,
         measured_improvements: cleanArray(sanitized.measuredImprovements || []),
         measured_improvements_other: sanitized.measuredImprovementsOther || null,
-        time_savings: sanitized.timeSavings || null,
-        cost_reduction: sanitized.costReduction || null,
-        revenue_impact: sanitized.revenueImpact || null,
         challenges_ranked: cleanArray(sanitized.challengesRanked || []),
         challenges_other: sanitized.challengesOther || null,
-        ai_knowledge_level: sanitized.aiKnowledgeLevel,
         dedicated_ai_expertise: sanitized.dedicatedAiExpertise,
         data_infrastructure_readiness: sanitized.dataInfrastructureReadiness || 0,
         centralized_data_platform: sanitized.centralizedDataPlatform,
@@ -117,11 +115,9 @@ export const transformResponsesForDB = (
         customer_facing_ai: sanitized.customerFacingAi,
         customer_ai_interactions: cleanArray(sanitized.customerAiInteractions || []),
         customer_ai_interactions_other: sanitized.customerAiInteractionsOther || null,
-        customer_ai_disclosure: sanitized.customerAiDisclosure || null,
         customer_feedback: sanitized.customerFeedback || null,
-        ai_priorities: cleanArray(sanitized.aiPriorities || []),
-        ai_priorities_other: sanitized.aiPrioritiesOther || null,
-        greatest_ai_potential: cleanArray(sanitized.greatestAiPotential || []),
+        greatest_ai_potential: sanitized.greatestAiPotential || null,
+        greatest_ai_potential_other: sanitized.greatestAiPotentialOther || null,
         increase_ai_investment_2026: sanitized.increaseAiInvestment2026,
         adoption_accelerators: cleanArray(sanitized.adoptionAccelerators || []),
         adoption_accelerators_other: sanitized.adoptionAcceleratorsOther || null,
@@ -132,9 +128,7 @@ export const transformResponsesForDB = (
         ai_for_compliance: sanitized.aiForCompliance || null,
         competitor_comparison: sanitized.competitorComparison,
         exciting_ai_trend: sanitized.excitingAiTrend,
-        questions_to_answer: sanitized.questionsToAnswer || null,
         personal_ai_comfort: sanitized.personalAiComfort || 0,
-        tool_satisfaction: sanitized.toolSatisfaction || 0,
         desired_ai_capabilities: sanitized.desiredAiCapabilities || null,
         receive_report: sanitized.receiveReport || null,
         survey_feedback: sanitized.surveyFeedback || null,
