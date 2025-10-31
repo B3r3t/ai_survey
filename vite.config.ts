@@ -2,8 +2,8 @@ import path from 'path';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import type { ProxyRequestBody } from './lib/server/anthropic';
-import { runAnthropicChat } from './lib/server/anthropic';
+import type { ProxyRequestBody } from './lib/server/anthropic.js';
+import { runAnthropicChat } from './lib/server/anthropic.js';
 
 const anthropicProxyPlugin = (): Plugin => ({
   name: 'anthropic-proxy',
