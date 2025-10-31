@@ -1,35 +1,48 @@
-import DOMPurify from 'dompurify';
 import { Responses } from '../types';
 
-export function sanitizeInput(input: string): string {
-  return DOMPurify.sanitize(input, {
-    ALLOWED_TAGS: [],
-    ALLOWED_ATTR: [],
-  });
-}
+/**
+ * Sanitize user input to prevent XSS and injection attacks
+ */
+export const sanitizeInput = (input: string): string => {
+    if (typeof input !== 'string') return '';
 
-function sanitizeValue<T>(value: T): T {
-  if (typeof value === 'string') {
-    return sanitizeInput(value) as T;
-  }
+    return input
+        .trim()
+        .replace(/[<>]/g, '')
+        .replace(/javascript:/gi, '')
+        .substring(0, 10000);
+};
 
-  if (Array.isArray(value)) {
-    return value.map((item) =>
-      typeof item === 'string' ? sanitizeInput(item) : item
-    ) as T;
-  }
+/**
+ * Remove empty strings and null values from arrays
+ */
+export const cleanArray = (arr: unknown[]): string[] => {
+    if (!Array.isArray(arr)) return [];
 
-  return value;
-}
+    return arr
+        .filter(item => item !== null && item !== undefined && item !== '')
+        .map(item => String(item).trim())
+        .filter(item => item.length > 0);
+};
 
-export function sanitizeResponses<T extends Partial<Responses>>(responses: T): T {
-  const sanitizedEntries = Object.entries(responses).reduce<Partial<Responses>>(
-    (acc, [key, value]) => {
-      acc[key as keyof Responses] = sanitizeValue(value);
-      return acc;
-    },
-    {}
-  );
+/**
+ * Sanitize all responses
+ */
+export const sanitizeResponses = (responses: Partial<Responses>): Partial<Responses> => {
+    const sanitized: Partial<Responses> = {};
 
-  return sanitizedEntries as T;
-}
+    Object.keys(responses).forEach((key) => {
+        const typedKey = key as keyof Responses;
+        const value = responses[typedKey];
+
+        if (typeof value === 'string') {
+            sanitized[typedKey] = sanitizeInput(value) as Responses[keyof Responses];
+        } else if (Array.isArray(value)) {
+            sanitized[typedKey] = cleanArray(value) as Responses[keyof Responses];
+        } else {
+            sanitized[typedKey] = value as Responses[keyof Responses];
+        }
+    });
+
+    return sanitized;
+};

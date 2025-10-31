@@ -123,8 +123,9 @@ export type Errors = {
 };
 
 export enum SurveyStatus {
-  IN_PROGRESS,
-  COMPLETED
+  NOT_STARTED = 'not_started',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed'
 }
 
 export interface ChatMessage {
