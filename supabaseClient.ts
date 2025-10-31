@@ -168,7 +168,10 @@ const upsertSurveyResponses = async (payload: DbPayload) => {
 // Submit completed survey
 export const submitSurveyResponse = async (responses: Responses, sessionId: string) => {
     try {
-        const dbData = transformResponsesForDB(responses, sessionId, {
+        const sanitizedResponses = sanitizeResponses(responses);
+        const mergedResponses = { ...INITIAL_RESPONSES, ...sanitizedResponses } as Responses;
+
+        const dbData = transformResponsesForDB(mergedResponses, sessionId, {
             userAgent: getUserAgent(),
             isCompleted: true,
             currentSection: 'completed',
@@ -199,7 +202,10 @@ export const autoSaveProgress = async (
     progressPercentage: number
 ) => {
     try {
-        const dbData = transformResponsesForDB(responses, sessionId, {
+        const sanitizedResponses = sanitizeResponses(responses);
+        const mergedResponses = { ...INITIAL_RESPONSES, ...sanitizedResponses } as Responses;
+
+        const dbData = transformResponsesForDB(mergedResponses, sessionId, {
             userAgent: getUserAgent(),
             isCompleted: false,
             currentSection,
