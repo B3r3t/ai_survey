@@ -396,11 +396,14 @@ const renderSectionComponent = (sectionIndex: number, props: SectionProps) => {
                     </div>
                     
                     <div className="mt-8 space-y-6 pt-6 border-t border-brand-gray-smoke">
-                        <RadioGroupInput label="Would you like to receive a copy of the 2025 AI in Franchising Report when it's published?" value={props.responses.receiveReport} onChange={v => props.updateResponse('receiveReport', v)} options={[{value: 'yes_full', label: 'Yes, send me the full report'}, {value: 'yes_summary', label: 'Yes, send me the executive summary'}, {value: 'no', label: 'No, thank you'}]} />
-                        <RadioGroupInput label="Would you be open to a follow-up interview to discuss your responses in more detail?" value={props.responses.allowFollowUp} onChange={v => props.updateResponse('allowFollowUp', v)} options={[{value: 'yes', label: 'Yes'}, {value: 'no', label: 'No'}]} />
-                        <RadioGroupInput label="Would you be interested in being featured in a case study (with your permission)?" value={props.responses.caseStudyInterest} onChange={v => props.updateResponse('caseStudyInterest', v)} options={[{value: 'yes', label: 'Yes'}, {value: 'no', label: 'No'}]} />
-                        <TextAreaInput label="Do you have any final comments or thoughts?" value={props.responses.finalComments} onChange={v => props.updateResponse('finalComments', v)} placeholder="Share any additional feedback here." />
-                        <RadioGroupInput label="Would you like to be entered into a drawing for a $500 gift card?" value={props.responses.enterDrawing} onChange={v => props.updateResponse('enterDrawing', v)} options={[{value: 'yes', label: 'Yes'}, {value: 'no', label: 'No'}]} />
+                        <RadioGroupInput label="Q51. Would you like to receive a copy of the 2025 AI in Franchising Report when it's published?" value={props.responses.receiveReport} onChange={v => props.updateResponse('receiveReport', v)} options={[{value: 'yes_full', label: 'Yes, send me the full report'}, {value: 'yes_summary', label: 'Yes, send me the executive summary'}, {value: 'no', label: 'No, thank you'}]} />
+                        <TextAreaInput label="Q52. Is there anything about AI in franchising you'd like to know more about, or a topic we didn't ask about that we should have included?" value={props.responses.surveyFeedback} onChange={v => props.updateResponse('surveyFeedback', v)} placeholder="Share topics or questions you'd like us to cover in future surveys." />
+                        <RadioGroupInput label="Q53. AGNTMKT puts out this report every year completely free because we believe in franchising and the power of sharing ideas. If you're not sure where to start with AI, we'd love an opportunity to meet with you and share our solutions - or check out our website at agntmkt.ai. Would you like us to follow up with you?" value={props.responses.agntmktFollowUp} onChange={v => props.updateResponse('agntmktFollowUp', v)} options={[
+                            { value: 'contact_me', label: 'Yes, please contact me to discuss AI solutions' },
+                            { value: 'send_info', label: 'Yes, just send me information about your services' },
+                            { value: 'check_website', label: "No, but I'll check out your website" },
+                            { value: 'not_interested', label: 'No, not interested at this time' },
+                        ]} />
                     </div>
                 </>
                 )

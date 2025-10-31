@@ -112,10 +112,8 @@ export interface Responses {
 
   // Section 15
   receiveReport: string;
-  allowFollowUp: string;
-  caseStudyInterest: string;
-  finalComments: string;
-  enterDrawing: string;
+  surveyFeedback: string;
+  agntmktFollowUp: string;
 }
 
 export type Errors = {

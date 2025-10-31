@@ -87,10 +87,8 @@ CREATE TABLE IF NOT EXISTS survey_responses (
   tool_satisfaction integer,
   desired_ai_capabilities text,
   receive_report text,
-  allow_follow_up text,
-  case_study_interest text,
-  final_comments text,
-  enter_drawing text,
+  survey_feedback text,
+  agntmkt_follow_up text,
   first_name text,
   last_name text
 );

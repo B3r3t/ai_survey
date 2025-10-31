@@ -148,8 +148,6 @@ export const INITIAL_RESPONSES: Responses = {
 
   // Section 15
   receiveReport: 'yes_full',
-  allowFollowUp: 'no',
-  caseStudyInterest: 'no',
-  finalComments: '',
-  enterDrawing: 'yes',
+  surveyFeedback: '',
+  agntmktFollowUp: '',
 };
