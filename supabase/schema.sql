@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS survey_responses (
   desired_ai_capabilities text,
   receive_report text,
   survey_feedback text,
-  agntmkt_follow_up text,
+  agntmkt_followup text,
   first_name text,
   last_name text
 );
