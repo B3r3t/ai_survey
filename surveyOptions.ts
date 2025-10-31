@@ -426,7 +426,7 @@ export const RECEIVE_REPORT_OPTIONS: Option[] = [
   { value: 'no', label: 'No, thank you' },
 ];
 
-export const AGNTMKT_FOLLOW_UP_OPTIONS: Option[] = [
+export const AGNTMKT_FOLLOWUP_OPTIONS: Option[] = [
   { value: 'contact_me', label: 'Yes, please contact me to discuss AI solutions' },
   { value: 'send_info', label: 'Yes, just send me information about your services' },
   { value: 'check_website', label: "No, but I'll check out your website" },
