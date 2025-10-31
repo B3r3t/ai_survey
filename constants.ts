@@ -15,6 +15,7 @@ export const SECTIONS: Section[] = [
   { id: 'ethics', name: 'Ethics & Risk', icon: '📜', estimatedMinutes: 1 },
   { id: 'trends', name: 'Trends', icon: '🌐', estimatedMinutes: 1 },
   { id: 'satisfaction', name: 'Satisfaction', icon: '😊', estimatedMinutes: 1 },
+  { id: 'closing', name: 'Closing Questions', icon: '📬', estimatedMinutes: 1 },
   { id: 'review', name: 'Review', icon: '✅', estimatedMinutes: 1 },
 ];
 
@@ -42,7 +43,7 @@ export const PROGRESS_BAR_GROUPS: ProgressBarGroup[] = [
   {
     name: 'Finalize',
     icon: '✅',
-    sectionIds: ['satisfaction', 'review'],
+    sectionIds: ['satisfaction', 'closing', 'review'],
   },
 ];
 
