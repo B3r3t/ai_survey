@@ -2,6 +2,7 @@ import React, { useState, useCallback, useId } from 'react';
 import { SECTIONS, INITIAL_RESPONSES, PROGRESS_BAR_GROUPS } from './constants';
 import { Responses, Errors, SurveyStatus, Section } from './types';
 import ProgressBar from './components/ProgressBar';
+import IntroScreen from './components/IntroScreen';
 import CompletionScreen from './components/WelcomeScreen';
 import Chatbot from './components/Chatbot';
 import { ChevronLeft, ChevronRight, Check, AlertCircle, Edit2, Clock, ChevronsUpDown, MessageCircle } from 'lucide-react';
@@ -420,7 +421,7 @@ const App: React.FC = () => {
     const [errors, setErrors] = useState<Errors>({});
     const [currentSection, setCurrentSection] = useState(0);
     const [history, setHistory] = useState<number[]>([0]);
-    const [status, setStatus] = useState<SurveyStatus>(SurveyStatus.IN_PROGRESS);
+    const [status, setStatus] = useState<SurveyStatus>(SurveyStatus.NOT_STARTED);
     const [isChatbotOpen, setIsChatbotOpen] = useState(false);
     const sessionId = useSessionId();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -491,7 +492,13 @@ const App: React.FC = () => {
     );
 
     const handleSessionRestore = useCallback((result: SessionLoadData) => {
-        const { responses: savedResponses, currentSection: savedSectionId, progressPercentage: savedProgress, isCompleted, updatedAt } = result;
+        const savedProgress = result.progressPercentage ?? 0;
+
+        if (savedProgress > 0) {
+            setStatus(SurveyStatus.IN_PROGRESS);
+        }
+
+        const { responses: savedResponses, currentSection: savedSectionId, isCompleted, updatedAt } = result;
 
         if (savedResponses && Object.keys(savedResponses).length > 0) {
             setResponses(prev => ({ ...prev, ...savedResponses }));
@@ -516,8 +523,6 @@ const App: React.FC = () => {
         if (isCompleted) {
             setStatus(SurveyStatus.COMPLETED);
             setSubmissionSuccess(true);
-        } else if (savedProgress > 0) {
-            setStatus(SurveyStatus.IN_PROGRESS);
         }
 
         setAutoSaveError(null);
@@ -709,86 +714,96 @@ const App: React.FC = () => {
         }
     };
 
-    if (status === SurveyStatus.COMPLETED) {
-        return <main className="min-h-screen bg-brand-gray-cloud flex items-center justify-center p-4"><CompletionScreen responses={responses} submissionSuccess={submissionSuccess} /></main>;
-    }
+    const handleStartSurvey = () => {
+        setStatus(SurveyStatus.IN_PROGRESS);
+        window.scrollTo(0, 0);
+    };
 
     const currentSectionData = SECTIONS[currentSection];
-    const totalTime = SECTIONS.reduce((acc, s) => acc + s.estimatedMinutes, 0);
     const remainingTime = SECTIONS.slice(currentSection).reduce((acc, s) => acc + s.estimatedMinutes, 0);
 
     return (
-        <main className="min-h-screen bg-brand-gray-cloud p-4 sm:p-6 md:p-8">
-            <div className="max-w-3xl mx-auto">
-                <header className="text-center mb-8">
-                    <img src="https://dhqupibzlgpkwagmkjtg.supabase.co/storage/v1/object/public/images/Asset%201@4x-8.png" alt="Business Logo" className="h-16 mx-auto mb-4" />
-                    <h1 className="text-3xl sm:text-4xl font-bold text-brand-dark-bg mb-2">2025 AI in Franchising Survey</h1>
-                    <p className="text-brand-gray-graphite">Thank you for contributing to our third annual AI in Franchising survey. Our goal is to share how AI is being used across the franchise industry. This survey covers topics like usuage, tools, implementation, investment and more. Thank you for taking the time to share your feedback.</p>
-                </header>
+        <div className="min-h-screen bg-gradient-to-br from-brand-gray-cloud via-white to-brand-gray-cloud">
+            {status === SurveyStatus.NOT_STARTED ? (
+                <IntroScreen onStart={handleStartSurvey} />
+            ) : status === SurveyStatus.COMPLETED ? (
+                <main className="min-h-screen bg-brand-gray-cloud flex items-center justify-center p-4">
+                    <CompletionScreen responses={responses} submissionSuccess={submissionSuccess} />
+                </main>
+            ) : (
+                <main className="py-8 px-4 sm:px-6 md:px-8">
+                    <div className="max-w-3xl mx-auto">
+                        <header className="text-center mb-8">
+                            <img src="https://dhqupibzlgpkwagmkjtg.supabase.co/storage/v1/object/public/images/Asset%201@4x-8.png" alt="Business Logo" className="h-16 mx-auto mb-4" />
+                            <h1 className="text-3xl sm:text-4xl font-bold text-brand-dark-bg mb-2">2025 AI in Franchising Survey</h1>
+                            <p className="text-brand-gray-graphite">Thank you for contributing to our third annual AI in Franchising survey. Our goal is to share how AI is being used across the franchise industry. This survey covers topics like usuage, tools, implementation, investment and more. Thank you for taking the time to share your feedback.</p>
+                        </header>
 
-                <div className="bg-white border border-brand-gray-smoke p-6 sm:p-8 rounded-xl shadow-lg">
-                    <ProgressBar currentSection={currentSection} sections={SECTIONS} history={history} jumpToSection={jumpToSection} groups={PROGRESS_BAR_GROUPS} />
+                        <div className="bg-white border border-brand-gray-smoke p-6 sm:p-8 rounded-xl shadow-lg">
+                            <ProgressBar currentSection={currentSection} sections={SECTIONS} history={history} jumpToSection={jumpToSection} groups={PROGRESS_BAR_GROUPS} />
 
-                    {(lastSaved || autoSaveError) && (
-                        <div className="mt-4 flex flex-col gap-2 text-xs text-brand-gray-graphite sm:flex-row sm:items-center sm:justify-between">
-                            {lastSaved && (
-                                <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
+                            {(lastSaved || autoSaveError) && (
+                                <div className="mt-4 flex flex-col gap-2 text-xs text-brand-gray-graphite sm:flex-row sm:items-center sm:justify-between">
+                                    {lastSaved && (
+                                        <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
+                                    )}
+                                    {autoSaveError && (
+                                        <span className="text-red-600" role="alert">{autoSaveError}</span>
+                                    )}
+                                </div>
                             )}
-                            {autoSaveError && (
-                                <span className="text-red-600" role="alert">{autoSaveError}</span>
-                            )}
-                        </div>
-                    )}
 
-                    <div className="flex justify-between items-center border-t border-b border-brand-gray-smoke py-4 mb-8">
-                        <div>
-                            <span className="text-2xl mr-3">{currentSectionData.icon}</span>
-                            <span className="text-xl font-bold text-brand-dark-bg">{currentSectionData.name}</span>
-                        </div>
-                        <div className="flex items-center text-sm text-brand-gray-graphite">
-                            <Clock className="w-4 h-4 mr-1.5" />
-                            <span>Est. {remainingTime} mins remaining</span>
+                            <div className="flex justify-between items-center border-t border-b border-brand-gray-smoke py-4 mb-8">
+                                <div>
+                                    <span className="text-2xl mr-3">{currentSectionData.icon}</span>
+                                    <span className="text-xl font-bold text-brand-dark-bg">{currentSectionData.name}</span>
+                                </div>
+                                <div className="flex items-center text-sm text-brand-gray-graphite">
+                                    <Clock className="w-4 h-4 mr-1.5" />
+                                    <span>Est. {remainingTime} mins remaining</span>
+                                </div>
+                            </div>
+
+                            {renderSectionComponent(currentSection, { responses, updateResponse, toggleArrayItem, errors, jumpToSection })}
+
+                            {submissionError && (
+                                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                    <p className="text-red-700 flex items-center">
+                                        <AlertCircle className="w-5 h-5 mr-2" />
+                                        {submissionError}
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="mt-8 pt-6 border-t border-brand-gray-smoke flex justify-between items-center">
+                                <button onClick={handlePrev} disabled={currentSection === 0 || isSubmitting} className="flex items-center px-4 py-2 font-bold text-brand-dark-bg bg-brand-gray-smoke rounded-lg hover:bg-brand-gray-steel/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <ChevronLeft className="w-5 h-5 mr-1" />
+                                    Previous
+                                </button>
+                                <button
+                                    onClick={handleNext}
+                                    disabled={isSubmitting}
+                                    className="flex items-center px-6 py-3 font-bold text-white bg-brand-orange rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isSubmitting ? 'Submitting...' : (currentSection === SECTIONS.length - 1 ? 'Submit' : 'Next')}
+                                    {!isSubmitting && (currentSection === SECTIONS.length - 1 ? <Check className="w-5 h-5 ml-2" /> : <ChevronRight className="w-5 h-5 ml-2" />)}
+                                </button>
+                            </div>
                         </div>
                     </div>
-
-                    {renderSectionComponent(currentSection, { responses, updateResponse, toggleArrayItem, errors, jumpToSection })}
-
-                    {submissionError && (
-                        <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                            <p className="text-red-700 flex items-center">
-                                <AlertCircle className="w-5 h-5 mr-2" />
-                                {submissionError}
-                            </p>
-                        </div>
-                    )}
-
-                    <div className="mt-8 pt-6 border-t border-brand-gray-smoke flex justify-between items-center">
-                        <button onClick={handlePrev} disabled={currentSection === 0 || isSubmitting} className="flex items-center px-4 py-2 font-bold text-brand-dark-bg bg-brand-gray-smoke rounded-lg hover:bg-brand-gray-steel/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                            <ChevronLeft className="w-5 h-5 mr-1" />
-                            Previous
-                        </button>
+                    {!isChatbotOpen && (
                         <button
-                            onClick={handleNext}
-                            disabled={isSubmitting}
-                            className="flex items-center px-6 py-3 font-bold text-white bg-brand-orange rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => setIsChatbotOpen(true)}
+                            className="fixed bottom-6 right-6 bg-brand-orange text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center hover:bg-brand-orange-light transition-colors"
+                            aria-label="Open AI Assistant"
                         >
-                            {isSubmitting ? 'Submitting...' : (currentSection === SECTIONS.length - 1 ? 'Submit' : 'Next')}
-                            {!isSubmitting && (currentSection === SECTIONS.length - 1 ? <Check className="w-5 h-5 ml-2" /> : <ChevronRight className="w-5 h-5 ml-2" />)}
+                            <MessageCircle className="w-8 h-8" />
                         </button>
-                    </div>
-                </div>
-            </div>
-             {!isChatbotOpen && (
-                <button
-                    onClick={() => setIsChatbotOpen(true)}
-                    className="fixed bottom-6 right-6 bg-brand-orange text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center hover:bg-brand-orange-light transition-colors"
-                    aria-label="Open AI Assistant"
-                >
-                    <MessageCircle className="w-8 h-8" />
-                </button>
+                    )}
+                    <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
+                </main>
             )}
-            <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
-        </main>
+        </div>
     );
 };
 
