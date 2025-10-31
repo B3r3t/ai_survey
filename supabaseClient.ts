@@ -46,6 +46,7 @@ interface ResponseMetadata {
     currentSection?: string;
     progressPercentage?: number;
     completedAt?: string | null;
+    surveyVersion?: string | null;
 }
 
 const getUserAgent = (fallback?: string | null) => {
@@ -59,11 +60,12 @@ export const transformResponsesForDB = (
     responses: Responses,
     sessionId: string,
     metadata: ResponseMetadata = {}
-) => {
+): Record<string, unknown> => {
     const sanitized = sanitizeResponses(responses);
 
-    return {
+    const dbPayload: Record<string, unknown> = {
         session_id: sessionId,
+        survey_version: metadata.surveyVersion ?? surveyVersion ?? null,
         email: sanitized.email,
         company_name: sanitized.companyName,
         industry: sanitized.industry,
@@ -146,6 +148,29 @@ export const transformResponsesForDB = (
         user_agent: getUserAgent(metadata.userAgent),
         updated_at: new Date().toISOString(),
     };
+    return dbPayload;
+};
+
+type DbPayload = ReturnType<typeof transformResponsesForDB>;
+
+const upsertSurveyResponses = async (payload: DbPayload) => {
+    const baseResult = await supabase
+        .from('survey_responses')
+        .upsert([payload], { onConflict: 'session_id' })
+        .select();
+
+    if (baseResult.error?.code === '42703' && 'survey_version' in payload) {
+        console.warn(
+            'Supabase survey_responses table is missing survey_version column. Retrying without it.'
+        );
+        const { survey_version: _surveyVersion, ...fallbackPayload } = payload;
+        return supabase
+            .from('survey_responses')
+            .upsert([fallbackPayload as Record<string, unknown>], { onConflict: 'session_id' })
+            .select();
+    }
+
+    return baseResult;
 };
 
 // Submit completed survey
@@ -157,12 +182,10 @@ export const submitSurveyResponse = async (responses: Responses, sessionId: stri
             currentSection: 'completed',
             progressPercentage: 100,
             completedAt: new Date().toISOString(),
+            surveyVersion,
         });
 
-        const { data, error } = await supabase
-            .from('survey_responses')
-            .upsert([dbData], { onConflict: 'session_id' })
-            .select();
+        const { data, error } = await upsertSurveyResponses(dbData);
 
         if (error) {
             console.error('Error submitting survey:', error);
@@ -190,14 +213,10 @@ export const autoSaveProgress = async (
             currentSection,
             progressPercentage,
             completedAt: null,
+            surveyVersion,
         });
 
-        const { data, error } = await supabase
-            .from('survey_responses')
-            .upsert([dbData], {
-                onConflict: 'session_id'
-            })
-            .select();
+        const { data, error } = await upsertSurveyResponses(dbData);
 
         if (error) {
             console.error('Error auto-saving:', error);
