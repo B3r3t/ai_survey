@@ -25,6 +25,8 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
 
    ```ini
    ANTHROPIC_API_KEY=your_actual_api_key_here
+   # Optional: override the Claude model used by the proxy
+   ANTHROPIC_MODEL=claude-3-5-sonnet-20240620
    VITE_SUPABASE_URL=https://your-project-ref.supabase.co
    VITE_SUPABASE_ANON_KEY=your_public_anon_key
    VITE_SURVEY_VERSION=1
@@ -54,6 +56,7 @@ A modern, interactive survey application built with React, TypeScript, and Vite 
 In your Vercel project settings, add the following environment variables:
 
 - `ANTHROPIC_API_KEY` – Anthropic Claude API key for the serverless proxy
+- `ANTHROPIC_MODEL` – _(optional)_ Claude model identifier to request; defaults to `claude-3-5-sonnet-20240620`
 - `VITE_SUPABASE_URL` – Supabase project URL
 - `VITE_SUPABASE_ANON_KEY` – Supabase anon (public) key
 - `VITE_SURVEY_VERSION` – Optional version string stored with each response

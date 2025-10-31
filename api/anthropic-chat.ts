@@ -1,5 +1,5 @@
-import type { ProxyRequestBody } from '../lib/server/anthropic';
-import { runAnthropicChat } from '../lib/server/anthropic';
+import type { ProxyRequestBody } from '../lib/server/anthropic.js';
+import { runAnthropicChat } from '../lib/server/anthropic.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
