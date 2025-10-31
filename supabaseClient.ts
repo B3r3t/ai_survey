@@ -132,7 +132,7 @@ export const transformResponsesForDB = (
         desired_ai_capabilities: sanitized.desiredAiCapabilities || null,
         receive_report: sanitized.receiveReport || null,
         survey_feedback: sanitized.surveyFeedback || null,
-        agntmkt_follow_up: sanitized.agntmktFollowUp || null,
+        agntmkt_followup: sanitized.agntmktFollowup || null,
         is_completed: metadata.isCompleted ?? false,
         completed_at: metadata.completedAt ?? null,
         progress_percentage: metadata.progressPercentage ?? 0,
