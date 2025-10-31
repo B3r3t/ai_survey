@@ -33,5 +33,12 @@ else
 fi
 
 echo ""
+if [ -n "$ANTHROPIC_MODEL" ]; then
+    echo "ℹ️  ANTHROPIC_MODEL is set to: $ANTHROPIC_MODEL"
+else
+    echo "ℹ️  ANTHROPIC_MODEL is not set — proxy will use default claude-3-5-sonnet-20240620"
+fi
+
+echo ""
 echo "=== All Anthropic-related environment variables ==="
 printenv | grep -E '^(VITE_)?ANTHROPIC_' || echo "No Anthropic environment variables found"
