@@ -1,4 +1,4 @@
-# AI in Franchising Survey
+# AI in Franchising Survey 2025
 
 A modern, interactive survey application built with React, TypeScript, and Vite to collect insights about AI adoption in the franchising industry.
 
