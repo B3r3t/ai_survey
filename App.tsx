@@ -46,7 +46,7 @@ import {
     AI_FOR_COMPLIANCE_OPTIONS,
     COMPETITOR_COMPARISON_OPTIONS,
     RECEIVE_REPORT_OPTIONS,
-    AGNTMKT_followup_OPTIONS,
+    AGNTMKT_FOLLOWUP_OPTIONS,
 } from './surveyOptions';
 import { REVIEW_SECTIONS, formatReviewAnswer } from './reviewConfig';
 
