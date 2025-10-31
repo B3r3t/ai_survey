@@ -4,6 +4,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS survey_responses (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   session_id text NOT NULL UNIQUE,
+  survey_version text,
   created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now()),
   started_at timestamptz DEFAULT timezone('utc'::text, now()),
