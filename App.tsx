@@ -1,14 +1,56 @@
-import React, { useState, useCallback, useId } from 'react';
+import React, { useState, useCallback, useId, useMemo } from 'react';
 import { SECTIONS, INITIAL_RESPONSES, PROGRESS_BAR_GROUPS } from './constants';
 import { Responses, Errors, SurveyStatus, Section } from './types';
 import ProgressBar from './components/ProgressBar';
 import IntroScreen from './components/IntroScreen';
 import CompletionScreen from './components/WelcomeScreen';
 import Chatbot from './components/Chatbot';
-import { ChevronLeft, ChevronRight, Check, AlertCircle, Edit2, Clock, ChevronsUpDown, MessageCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, AlertCircle, Edit2, Clock, ChevronsUpDown, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { submitSurveyResponse, type SessionLoadData } from './supabaseClient';
 import { useSessionId, useAutoSave, useLoadSession } from './hooks/useAutoSave';
 import { sanitizeInput } from './lib/sanitize';
+import {
+    INDUSTRY_OPTIONS,
+    ROLE_OPTIONS,
+    UNIT_COUNT_OPTIONS,
+    ANNUAL_REVENUE_OPTIONS,
+    PERSONAL_AI_USAGE_OPTIONS,
+    ORG_AI_USAGE_OPTIONS,
+    AI_USAGE_CHANGE_OPTIONS,
+    AI_TOOL_OPTIONS,
+    PRIMARY_AI_TOOL_OPTIONS,
+    AI_USE_CASE_OPTIONS,
+    CORPORATE_DEPARTMENT_ROWS,
+    CORPORATE_PURPOSE_OPTIONS,
+    FRANCHISEE_AI_SUPPORT_OPTIONS,
+    FRANCHISEE_SUPPORT_METHOD_OPTIONS,
+    FRANCHISEE_ADOPTION_RATE_OPTIONS,
+    FRANCHISEE_AI_LEARNING_OPTIONS,
+    ANNUAL_AI_BUDGET_OPTIONS,
+    AI_BUDGET_CHANGE_OPTIONS,
+    AI_INVESTMENT_DECISION_MAKER_OPTIONS,
+    MEASURED_ROI_OPTIONS,
+    MEASURED_IMPROVEMENTS_OPTIONS,
+    CHALLENGES_OPTIONS,
+    DEDICATED_AI_EXPERTISE_OPTIONS,
+    CENTRALIZED_DATA_PLATFORM_OPTIONS,
+    DATA_SOURCES_OPTIONS,
+    CUSTOMER_FACING_AI_OPTIONS,
+    CUSTOMER_AI_INTERACTIONS_OPTIONS,
+    CUSTOMER_FEEDBACK_OPTIONS,
+    GREATEST_AI_POTENTIAL_SINGLE_OPTIONS,
+    INCREASE_AI_INVESTMENT_OPTIONS,
+    ADOPTION_ACCELERATORS_OPTIONS,
+    AI_POLICY_OPTIONS,
+    ETHICAL_CONCERNS_OPTIONS,
+    AI_FOR_COMPLIANCE_OPTIONS,
+    COMPETITOR_COMPARISON_OPTIONS,
+    RECEIVE_REPORT_OPTIONS,
+    AGNTMKT_FOLLOW_UP_OPTIONS,
+} from './surveyOptions';
+import { REVIEW_SECTIONS, formatReviewAnswer } from './reviewConfig';
+
+const getSectionIndexById = (id: string) => SECTIONS.findIndex(section => section.id === id);
 
 // --- Reusable Input Components ---
 
@@ -111,7 +153,7 @@ const RadioGroupInput: React.FC<{
 };
 
 const CheckboxGroupInput: React.FC<{
-  label: string, 
+  label: string,
   options: {value: string, label: string, isExclusive?: boolean}[],
   value: string[],
   onChange: (v: string, isExclusive?: boolean) => void,
@@ -148,6 +190,89 @@ const CheckboxGroupInput: React.FC<{
       {error && <p className="text-sm text-red-500 mt-2 flex items-center"><AlertCircle className="w-4 h-4 mr-1" />{error}</p>}
     </div>
   )
+};
+
+const CorporateAIMatrixInput: React.FC<{
+  label: string;
+  description?: string;
+  departments: { id: string; label: string }[];
+  purposes: { value: string; label: string; isExclusive?: boolean }[];
+  value: Record<string, string[]>;
+  onChange: (departmentId: string, selections: string[]) => void;
+  required?: boolean;
+  error?: string | null;
+}> = ({ label, description, departments, purposes, value, onChange, required, error }) => {
+  const purposeOrder = useMemo(() => purposes.reduce<Record<string, number>>((acc, option, index) => {
+    acc[option.value] = index;
+    return acc;
+  }, {}), [purposes]);
+
+  const exclusiveValues = useMemo(
+    () => purposes.filter(option => option.isExclusive).map(option => option.value),
+    [purposes]
+  );
+
+  const toggleSelection = (departmentId: string, optionValue: string) => {
+    const currentSelections = value[departmentId] ?? [];
+    const option = purposes.find(p => p.value === optionValue);
+    let nextSelections: string[];
+
+    if (currentSelections.includes(optionValue)) {
+      nextSelections = currentSelections.filter(item => item !== optionValue);
+    } else if (option?.isExclusive) {
+      nextSelections = [optionValue];
+    } else {
+      const withoutExclusive = currentSelections.filter(item => !exclusiveValues.includes(item));
+      nextSelections = [...withoutExclusive, optionValue];
+    }
+
+    const sorted = nextSelections.sort((a, b) => (purposeOrder[a] ?? 0) - (purposeOrder[b] ?? 0));
+    onChange(departmentId, sorted);
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-brand-dark-bg mb-1">
+        {label}
+        {required && <span className="text-brand-orange ml-1">*</span>}
+      </label>
+      {description && <p className="text-sm text-brand-gray-graphite mb-3">{description}</p>}
+      <div className="space-y-4">
+        {departments.map((department) => {
+          const selections = value[department.id] ?? [];
+          const hasExclusiveSelection = selections.some(selection => exclusiveValues.includes(selection));
+          return (
+            <div key={department.id} className="border border-brand-gray-smoke rounded-lg p-4 bg-white shadow-sm">
+              <h4 className="text-sm font-semibold text-brand-dark-bg">{department.label}</h4>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {purposes.map((purpose) => {
+                  const isSelected = selections.includes(purpose.value);
+                  const isExclusive = !!purpose.isExclusive;
+                  const isDisabled = !isSelected && hasExclusiveSelection && !isExclusive;
+                  return (
+                    <label
+                      key={purpose.value}
+                      className={`flex items-center p-3 border rounded-lg transition-all ${isSelected ? 'bg-brand-orange/10 border-brand-orange ring-1 ring-brand-orange' : 'bg-white border-brand-gray-smoke hover:border-brand-gray-steel'} ${isDisabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelection(department.id, purpose.value)}
+                        disabled={isDisabled}
+                        className="w-4 h-4 text-brand-orange border-brand-gray-steel rounded focus:ring-brand-orange focus:ring-offset-0"
+                      />
+                      <span className="ml-3 text-sm text-brand-dark-bg">{purpose.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {error && <p className="text-sm text-red-500 mt-2 flex items-center"><AlertCircle className="w-4 h-4 mr-1" />{error}</p>}
+    </div>
+  );
 };
 
 const ScaleInput: React.FC<{label: string, value: number, onChange: (v: number) => void, required?: boolean, min?: number, max?: number, minLabel?: string, maxLabel?: string, description?: string}> = 
@@ -232,6 +357,8 @@ interface SectionProps {
   toggleArrayItem: (field: keyof Responses, value: string, isExclusive?: boolean) => void;
   errors: Errors;
   jumpToSection?: (index: number) => void;
+  openReviewSection?: string | null;
+  onToggleReviewSection?: (sectionId: string) => void;
 }
 
 const renderSectionComponent = (sectionIndex: number, props: SectionProps) => {
@@ -246,127 +373,136 @@ const renderSectionComponent = (sectionIndex: number, props: SectionProps) => {
                 <>
                   <TextInput label="Q1. Email Address" value={props.responses.email} onChange={v => props.updateResponse('email', v)} required error={props.errors.email} placeholder="your@email.com" type="email" description="Will not be shared publicly." />
                   <TextInput label="Q2. Company/Brand Name" value={props.responses.companyName} onChange={v => props.updateResponse('companyName', v)} required error={props.errors.companyName} placeholder="Your franchise brand" />
-                  <RadioGroupInput label="Q3. What industry is your franchise brand in?" required error={props.errors.industry} value={props.responses.industry} onChange={v => props.updateResponse('industry', v)} options={[ {value:'qsr', label:'Food & Beverage - Quick Service Restaurant (QSR)'}, {value:'fast_casual', label:'Food & Beverage - Fast Casual'}, {value:'full_service_restaurant', label:'Food & Beverage - Full Service Restaurant'}, {value:'coffee_cafe', label:'Food & Beverage - Coffee/Cafe'}, {value:'food_other', label:'Food & Beverage - Other'}, {value:'health_fitness', label:'Health & Fitness'}, {value:'beauty', label:'Beauty & Personal Care'}, {value:'home_services', label:'Home Services'}, {value:'business_services', label:'Business Services'}, {value:'education', label:'Education & Tutoring'}, {value:'senior_care', label:'Senior Care'}, {value:'child_care', label:'Child Care'}, {value:'pet_services', label:'Pet Services'}, {value:'retail', label:'Retail'}, {value:'automotive', label:'Automotive'}, {value:'real_estate', label:'Real Estate'}, {value:'hospitality', label:'Hospitality/Lodging'}, ]} otherValue={props.responses.industryOther} onOtherChange={v => props.updateResponse('industryOther', v)} />
-                  <RadioGroupInput label="Q4. What is your role/title?" required error={props.errors.role} value={props.responses.role} onChange={v => props.updateResponse('role', v)} options={[ {value:'ceo', label:'CEO/President'}, {value:'coo', label:'COO/VP of Operations'}, {value:'cfo', label:'CFO/VP of Finance'}, {value:'cmo', label:'CMO/VP of Marketing'}, {value:'cto', label:'CTO/VP of Technology/IT'}, {value:'franchise_dev', label:'Director of Franchise Development'}, {value:'ops_director', label:'Director of Operations'}, {value:'marketing_director', label:'Director of Marketing'}, {value:'franchise_support', label:'Franchise Support Manager'}, {value:'tech_manager', label:'Technology Manager'} ]} otherValue={props.responses.roleOther} onOtherChange={v => props.updateResponse('roleOther', v)} />
-                  <SelectInput label="Q5. How many franchise units does your brand have?" required error={props.errors.unitCount} value={props.responses.unitCount} onChange={v => props.updateResponse('unitCount', v)} options={[ {value:'1-10', label:'1-10 units'}, {value:'11-25', label:'11-25 units'}, {value:'26-50', label:'26-50 units'}, {value:'51-100', label:'51-100 units'}, {value:'101-250', label:'101-250 units'}, {value:'251-500', label:'251-500 units'}, {value:'501-1000', label:'501-1,000 units'}, {value:'1000+', label:'1,000+ units'}, ]} />
-                  <SelectInput label="Q6. What is your brand's annual system-wide revenue?" value={props.responses.annualRevenue} onChange={v => props.updateResponse('annualRevenue', v)} options={[ {value:'<5m', label:'Under $5 million'}, {value:'5-25m', label:'$5-$25 million'}, {value:'25-50m', label:'$25-$50 million'}, {value:'50-100m', label:'$50-$100 million'}, {value:'100-500m', label:'$100-$500 million'}, {value:'500m-1b', label:'$500 million - $1 billion'}, {value:'>1b', label:'Over $1 billion'}, {value:'prefer_not_to_answer', label:'Prefer not to answer'} ]} />
+                  <RadioGroupInput label="Q3. What industry is your franchise brand in?" required error={props.errors.industry} value={props.responses.industry} onChange={v => props.updateResponse('industry', v)} options={INDUSTRY_OPTIONS} otherValue={props.responses.industryOther} onOtherChange={v => props.updateResponse('industryOther', v)} />
+                  <RadioGroupInput label="Q4. What is your role/title?" required error={props.errors.role} value={props.responses.role} onChange={v => props.updateResponse('role', v)} options={ROLE_OPTIONS} otherValue={props.responses.roleOther} onOtherChange={v => props.updateResponse('roleOther', v)} />
+                  <SelectInput label="Q5. How many franchise units does your brand have?" required error={props.errors.unitCount} value={props.responses.unitCount} onChange={v => props.updateResponse('unitCount', v)} options={UNIT_COUNT_OPTIONS} />
+                  <SelectInput label="Q6. What is your brand's annual system-wide revenue?" value={props.responses.annualRevenue} onChange={v => props.updateResponse('annualRevenue', v)} options={ANNUAL_REVENUE_OPTIONS} />
                 </>
             );
             case 'usage': return (
               <>
-                <RadioGroupInput label="Q7. How often are you personally using AI tools?" required error={props.errors.personalAiUsage} value={props.responses.personalAiUsage} onChange={v => props.updateResponse('personalAiUsage', v)} options={[{value:'multiple_daily',label:'Multiple times per day'}, {value:'daily', label: 'Once per day'}, {value:'weekly', label:'Several times per week'}, {value:'biweekly', label: 'Once per week'}, {value:'monthly', label:'A few times per month'}, {value:'rarely', label:'Rarely (less than monthly)'}, {value:'never', label:'Never'}]} />
-                <RadioGroupInput label="Q8. How often is your organization using AI tools?" required error={props.errors.orgAiUsage} value={props.responses.orgAiUsage} onChange={v => props.updateResponse('orgAiUsage', v)} options={[{value:'daily',label:'Daily - integrated into regular workflows'}, {value:'weekly', label:'Weekly - regular but not daily use'}, {value:'monthly', label:'Monthly - occasional use'}, {value:'quarterly', label: 'Quarterly - very limited use'}, {value:'not_using', label:'Not currently using AI'}, {value:'dont_know', label:"Don't know"}]} />
-                <RadioGroupInput label="Q9. When did your organization first start experimenting with AI?" required error={props.errors.aiAdoptionDate} value={props.responses.aiAdoptionDate} onChange={v => props.updateResponse('aiAdoptionDate', v)} options={[{value: '<2020', label: 'Before 2020'}, {value:'2020-2021', label: '2020-2021'}, {value:'2022', label: '2022'}, {value:'2023', label: '2023'}, {value: '2024', label: '2024'}, {value: '2025', label: '2025'}, {value: 'not_started', label: "Haven't started yet"}, {value: 'dont_know', label: "Don't know"}]} />
-                <RadioGroupInput label="Q10. How has your AI usage changed in the past 12 months?" required error={props.errors.aiUsageChange} value={props.responses.aiUsageChange} onChange={v => props.updateResponse('aiUsageChange', v)} options={[{value:'increased_sig', label: 'Increased significantly'}, {value:'increased_mod', label: 'Increased moderately'}, {value:'same', label: 'Stayed about the same'}, {value:'decreased', label: 'Decreased'}, {value:'just_started', label: 'We just started using AI in the past year'}, {value:'n/a', label: 'Not applicable - not using AI'}]} />
+                <RadioGroupInput label="Q7. How often are you personally using AI tools?" required error={props.errors.personalAiUsage} value={props.responses.personalAiUsage} onChange={v => props.updateResponse('personalAiUsage', v)} options={PERSONAL_AI_USAGE_OPTIONS} />
+                <RadioGroupInput label="Q8. How often is your organization using AI tools?" required error={props.errors.orgAiUsage} value={props.responses.orgAiUsage} onChange={v => props.updateResponse('orgAiUsage', v)} options={ORG_AI_USAGE_OPTIONS} />
+                <RadioGroupInput label="Q9. How has your AI usage changed in the past 12 months?" required error={props.errors.aiUsageChange} value={props.responses.aiUsageChange} onChange={v => props.updateResponse('aiUsageChange', v)} options={AI_USAGE_CHANGE_OPTIONS} />
               </>
             );
             case 'tools': return (
               <>
-                <CheckboxGroupInput label="Q11. Which AI tools or platforms is your organization currently using?" description="(Select all that apply)" required error={props.errors.aiTools} value={props.responses.aiTools} onChange={(v, e) => props.toggleArrayItem('aiTools', v, e)} otherValues={{'industry-specific_specify': props.responses.aiToolsIndustrySpecific, 'custom_specify': props.responses.aiToolsCustom, 'other_specify': props.responses.aiToolsOther}} onOtherChange={(k, v) => { if (k === 'industry-specific_specify') props.updateResponse('aiToolsIndustrySpecific', v); else if (k === 'custom_specify') props.updateResponse('aiToolsCustom', v); else props.updateResponse('aiToolsOther', v)}} options={[{value:'chatgpt',label:'ChatGPT (OpenAI)'},{value:'claude',label:'Claude (Anthropic)'},{value:'gemini',label:'Gemini / Bard (Google)'},{value:'copilot',label:'Microsoft Copilot'},{value:'perplexity',label:'Perplexity'},{value:'grok',label:'Grok (xAI)'},{value:'meta',label:'Meta AI / Llama'},{value:'jasper',label:'Jasper'},{value:'copyai',label:'Copy.ai'},{value:'notion',label:'Notion AI'},{value:'canva',label:'Canva AI'},{value:'midjourney',label:'Midjourney'},{value:'dalle',label:'DALL-E / ChatGPT Image Generation'},{value:'firefly',label:'Adobe Firefly'},{value:'grammarly',label:'Grammarly (AI features)'},{value:'hubspot',label:'HubSpot AI tools'},{value:'salesforce',label:'Salesforce Einstein'},{value:'industry-specific_specify',label:'Industry-specific AI platform (please specify)'},{value:'custom_specify',label:'Custom/proprietary AI solution'},{value:'other_specify',label:'Other (please specify)'}, {value:'not_using_ai', label: 'Not currently using AI tools', isExclusive: true}]} />
+                <CheckboxGroupInput label="Q10. Which AI tools or platforms is your organization currently using?" description="(Select all that apply)" required error={props.errors.aiTools} value={props.responses.aiTools} onChange={(v, e) => props.toggleArrayItem('aiTools', v, e)} otherValues={{'industry-specific_specify': props.responses.aiToolsIndustrySpecific, 'custom_specify': props.responses.aiToolsCustom, 'other_specify': props.responses.aiToolsOther}} onOtherChange={(k, v) => { if (k === 'industry-specific_specify') props.updateResponse('aiToolsIndustrySpecific', v); else if (k === 'custom_specify') props.updateResponse('aiToolsCustom', v); else props.updateResponse('aiToolsOther', v)}} options={AI_TOOL_OPTIONS} />
                 { isAiUsed && <>
-                    <RadioGroupInput label="Q12. What is the primary AI model/platform your organization relies on most?" required error={props.errors.primaryAiTool} value={props.responses.primaryAiTool} onChange={v => props.updateResponse('primaryAiTool', v)} options={[{value:'chatgpt',label:'ChatGPT (OpenAI)'},{value:'claude',label:'Claude (Anthropic)'},{value:'gemini',label:'Gemini / Bard (Google)'},{value:'copilot',label:'Microsoft Copilot'},{value:'perplexity',label:'Perplexity'},{value:'grok',label:'Grok (xAI)'},{value:'meta',label:'Meta AI / Llama'}]} />
-                    <CheckboxGroupInput label="Q13. For what purposes do you use AI tools?" description="(Select all that apply)" required error={props.errors.aiUseCases} value={props.responses.aiUseCases} onChange={(v, e) => props.toggleArrayItem('aiUseCases', v, e)} otherValues={{'other_specify': props.responses.aiUseCasesOther}} onOtherChange={(k,v) => props.updateResponse('aiUseCasesOther', v)} options={[{value:'marketing_copy',label:'Content & Marketing: Writing marketing copy'}, {value:'social_media',label:'Content & Marketing: Social media content creation'}, {value:'email_campaigns',label:'Content & Marketing: Email campaigns'}, {value:'data_analysis',label:'Operations & Analysis: Data analysis / reporting'}, {value:'process_automation',label:'Operations & Analysis: Process automation'}, {value:'customer_chatbots',label:'Customer Service: Customer service chatbots'}, {value:'employee_training',label:'Training & Development: Employee training content'}, {value:'financial_modeling',label:'Finance & Legal: Financial modeling'}, {value:'code_generation',label:'Technology & Development: Code generation / debugging'}, {value:'recruitment',label:'Other: Recruitment / HR'}, {value:'other_specify',label:'Other (please specify)'}]} />
+                    <RadioGroupInput label="Q11. What is the primary AI model/platform your organization relies on most?" required error={props.errors.primaryAiTool} value={props.responses.primaryAiTool} onChange={v => props.updateResponse('primaryAiTool', v)} options={PRIMARY_AI_TOOL_OPTIONS} />
+                    <CheckboxGroupInput label="Q12. For what purposes do you use AI tools?" description="(Select all that apply)" required error={props.errors.aiUseCases} value={props.responses.aiUseCases} onChange={(v, e) => props.toggleArrayItem('aiUseCases', v, e)} otherValues={{'other_specify': props.responses.aiUseCasesOther}} onOtherChange={(k,v) => props.updateResponse('aiUseCasesOther', v)} options={AI_USE_CASE_OPTIONS} />
                 </>}
               </>
             );
             case 'corporate': return (
               <>
-                <CheckboxGroupInput label="Q14. How is your corporate team currently using AI?" description="(Select all that apply)" required error={props.errors.corporateAiUse} value={props.responses.corporateAiUse} onChange={(v, e) => props.toggleArrayItem('corporateAiUse', v, e)} otherValues={{'other_specify': props.responses.corporateAiUseOther}} onOtherChange={(k,v) => props.updateResponse('corporateAiUseOther', v)} options={[{value:'marketing',label:'Marketing & brand management'},{value:'content_creation',label:'Content creation'},{value:'franchise_dev',label:'Franchise development / sales'},{value:'ops_optimization',label:'Operations optimization'},{value:'training',label:'Training & education'},{value:'data_analysis',label:'Data analysis & reporting'},{value:'customer_service',label:'Customer service support'},{value:'finance',label:'Financial planning & analysis'},{value:'tech_dev',label:'Technology development'},{value:'hr',label:'Human resources / recruitment'},{value:'legal',label:'Legal & compliance'},{value:'supply_chain',label:'Supply chain management'},{value:'real_estate',label:'Real estate / site selection'},{value:'not_using_corp',label:'Not using AI at corporate level', isExclusive: true},{value:'other_specify',label:'Other (please specify)'}]} />
-                <RankingInput label="Q15. Which departments at your corporate office are using AI most frequently?" maxRank={3} value={props.responses.topDepartmentsAi} onChange={v => props.updateResponse('topDepartmentsAi', v)} options={[{value:'marketing',label:'Marketing'},{value:'operations',label:'Operations'},{value:'tech_it',label:'Technology/IT'},{value:'finance',label:'Finance'},{value:'franchise_dev',label:'Franchise Development'},{value:'training',label:'Training & Education'},{value:'customer_service',label:'Customer Service'},{value:'hr',label:'Human Resources'},{value:'legal',label:'Legal & Compliance'},{value:'executive',label:'Executive Leadership'},{value:'product_dev',label:'Product Development'},{value:'other',label:'Other'}]} />
+                <CorporateAIMatrixInput
+                  label="Q13. Which departments at your corporate office are using AI, and for what purposes?"
+                  description="Select all purposes that apply for each department."
+                  required
+                  error={props.errors.corporateAiMatrix}
+                  departments={CORPORATE_DEPARTMENT_ROWS}
+                  purposes={CORPORATE_PURPOSE_OPTIONS}
+                  value={props.responses.corporateAiMatrix}
+                  onChange={(departmentId, selections) => {
+                    const nextMatrix = { ...props.responses.corporateAiMatrix };
+                    if (selections.length > 0) {
+                      nextMatrix[departmentId] = selections;
+                    } else {
+                      delete nextMatrix[departmentId];
+                    }
+                    props.updateResponse('corporateAiMatrix', nextMatrix);
+                  }}
+                />
               </>
             );
             case 'franchisee': return (
               <>
-                <RadioGroupInput label="Q16. Are you currently using AI to support your franchisees?" required error={props.errors.franchiseeAiSupport} value={props.responses.franchiseeAiSupport} onChange={v => props.updateResponse('franchiseeAiSupport', v)} options={[{value:'yes_extensively',label:'Yes, extensively'},{value:'yes_moderately',label:'Yes, moderately'},{value:'yes_in_limited_ways',label:'Yes, in limited ways'},{value:'no_plan_6mo',label:'No, but planning to within 6 months'},{value:'no_plan_12mo',label:'No, but planning to within 12 months'},{value:'no_plans',label:'No, and no current plans'},{value:'dont_know',label:"Don't know"}]} />
+                <RadioGroupInput label="Q14. Are you currently using AI to support your franchisees?" required error={props.errors.franchiseeAiSupport} value={props.responses.franchiseeAiSupport} onChange={v => props.updateResponse('franchiseeAiSupport', v)} options={FRANCHISEE_AI_SUPPORT_OPTIONS} />
                 { areFranchiseesSupported &&
-                  <CheckboxGroupInput label="Q17. How are you supporting franchisees with AI?" description="(Select all that apply)" required error={props.errors.franchiseeSupportMethods} value={props.responses.franchiseeSupportMethods} onChange={(v, e) => props.toggleArrayItem('franchiseeSupportMethods', v, e)} otherValues={{'other_specify': props.responses.franchiseeSupportMethodsOther}} onOtherChange={(k,v) => props.updateResponse('franchiseeSupportMethodsOther', v)} options={[{value:'provide_tools',label:'Providing access to AI tools'},{value:'provide_content',label:'Creating AI-generated marketing content'},{value:'training',label:'Training on AI usage'},{value:'insights',label:'AI-powered operational insights'},{value:'other_specify',label:'Other (please specify)'}]} />
+                  <CheckboxGroupInput label="Q15. How are you supporting franchisees with AI?" description="(Select all that apply)" required error={props.errors.franchiseeSupportMethods} value={props.responses.franchiseeSupportMethods} onChange={(v, e) => props.toggleArrayItem('franchiseeSupportMethods', v, e)} otherValues={{'other_specify': props.responses.franchiseeSupportMethodsOther}} onOtherChange={(k,v) => props.updateResponse('franchiseeSupportMethodsOther', v)} options={FRANCHISEE_SUPPORT_METHOD_OPTIONS} />
                 }
-                <SelectInput label="Q18. What percentage of your franchisees are actively using AI tools?" value={props.responses.franchiseeAdoptionRate} onChange={v => props.updateResponse('franchiseeAdoptionRate', v)} options={[{value:'0',label:'0% - None'},{value:'1-10',label:'1-10%'},{value:'11-25',label:'11-25%'},{value:'26-50',label:'26-50%'},{value:'51-75',label:'51-75%'},{value:'76-90',label:'76-90%'},{value:'91-100',label:'91-100%'},{value:'dont_know',label:"Don't know"}]} />
-                <CheckboxGroupInput label="Q19. How do franchisees primarily learn about AI tools?" description="(Select all that apply)" value={props.responses.franchiseeAiLearning} onChange={(v,e)=>props.toggleArrayItem('franchiseeAiLearning',v,e)} otherValues={{'other_specify': props.responses.franchiseeAiLearningOther}} onOtherChange={(k,v) => props.updateResponse('franchiseeAiLearningOther', v)} options={[{value:'corp_training',label:'Corporate training programs'},{value:'conferences',label:'Franchisee conferences / conventions'},{value:'peer',label:'Peer franchisee recommendations'},{value:'independent',label:'Independent exploration'},{value:'other_specify',label:'Other (please specify)'}]} />
+                <SelectInput label="Q16. What percentage of your franchisees are actively using AI tools?" value={props.responses.franchiseeAdoptionRate} onChange={v => props.updateResponse('franchiseeAdoptionRate', v)} options={FRANCHISEE_ADOPTION_RATE_OPTIONS} />
+                <CheckboxGroupInput label="Q17. How do franchisees primarily learn about AI tools?" description="(Select all that apply)" value={props.responses.franchiseeAiLearning} onChange={(v,e)=>props.toggleArrayItem('franchiseeAiLearning',v,e)} otherValues={{'other_specify': props.responses.franchiseeAiLearningOther}} onOtherChange={(k,v) => props.updateResponse('franchiseeAiLearningOther', v)} options={FRANCHISEE_AI_LEARNING_OPTIONS} />
               </>
             );
             case 'investment': return (
               <>
-                <SelectInput label="Q20. What is your organization's annual AI investment/budget for 2025?" value={props.responses.annualAiBudget} onChange={v => props.updateResponse('annualAiBudget', v)} options={[{value:'0',label:'$0 (using only free tools)'},{value:'1-5k',label:'$1 - $5,000'},{value:'5-25k',label:'$5,001 - $25,000'},{value:'25-50k',label:'$25,001 - $50,000'},{value:'50-100k',label:'$50,001 - $100,000'},{value:'100-250k',label:'$100,001 - $250,000'},{value:'250-500k',label:'$250,001 - $500,000'},{value:'500-1m',label:'$500,001 - $1,000,000'},{value:'>1m',label:'Over $1,000,000'},{value:'dont_know',label:"Don't know"},{value:'prefer_not_to_answer',label:'Prefer not to answer'}]} />
-                <SelectInput label="Q21. How has your AI budget changed from 2024 to 2025?" value={props.responses.aiBudgetChange} onChange={v => props.updateResponse('aiBudgetChange', v)} options={[{value:'increase_50+',label:'Increased by 50%+'},{value:'increase_25-50',label:'Increased by 25-50%'},{value:'increase_10-25',label:'Increased by 10-25%'},{value:'increase_1-10',label:'Increased by 1-10%'},{value:'same',label:'Stayed about the same'},{value:'decreased',label:'Decreased'},{value:'no_budget_2024',label:"We didn't have an AI budget in 2024"},{value:'dont_know',label:"Don't know"}]} />
-                <CheckboxGroupInput label="Q22. Where does your AI budget primarily come from?" description="(Select all that apply)" value={props.responses.aiBudgetSource} onChange={(v, e) => props.toggleArrayItem('aiBudgetSource', v, e)} otherValues={{'other_specify': props.responses.aiBudgetSourceOther}} onOtherChange={(k,v) => props.updateResponse('aiBudgetSourceOther', v)} options={[{value:'tech_it',label:'Technology/IT budget'},{value:'marketing',label:'Marketing budget'},{value:'operations',label:'Operations budget'},{value:'innovation',label:'Innovation/R&D budget'},{value:'dedicated_ai',label:'Dedicated AI budget line item'},{value:'individual_dept',label:'Individual department budgets'},{value:'no_formal',label:'No formal budget allocation'},{value:'dont_know',label:"Don't know"},{value:'other_specify',label:'Other (please specify)'}]} />
-                <RadioGroupInput label="Q23. Who has primary responsibility for AI investment decisions?" value={props.responses.aiInvestmentDecisionMaker} onChange={v => props.updateResponse('aiInvestmentDecisionMaker', v)} otherValue={props.responses.aiInvestmentDecisionMakerOther} onOtherChange={v => props.updateResponse('aiInvestmentDecisionMakerOther', v)} options={[{value:'ceo',label:'CEO/President'},{value:'cto',label:'CTO/VP Technology'},{value:'coo',label:'COO/VP Operations'},{value:'cmo',label:'CMO/VP Marketing'},{value:'cfo',label:'CFO/VP Finance'},{value:'committee',label:'Cross-functional committee'},{value:'dept_heads',label:'Individual department heads'},{value:'dont_know',label:"Don't know"}]} />
+                <SelectInput label="Q18. What is your organization's annual AI investment/budget for 2025?" value={props.responses.annualAiBudget} onChange={v => props.updateResponse('annualAiBudget', v)} options={ANNUAL_AI_BUDGET_OPTIONS} />
+                <SelectInput label="Q19. How has your AI budget changed from 2024 to 2025?" value={props.responses.aiBudgetChange} onChange={v => props.updateResponse('aiBudgetChange', v)} options={AI_BUDGET_CHANGE_OPTIONS} />
+                <RadioGroupInput label="Q20. Who has primary responsibility for AI investment decisions?" value={props.responses.aiInvestmentDecisionMaker} onChange={v => props.updateResponse('aiInvestmentDecisionMaker', v)} options={AI_INVESTMENT_DECISION_MAKER_OPTIONS} />
               </>
             );
             case 'roi': return (
               <>
-                <RadioGroupInput label="Q24. Have you measured ROI or business impact from AI implementation?" required={isAiUsed} error={props.errors.measuredRoi} value={props.responses.measuredRoi} onChange={v => props.updateResponse('measuredRoi', v)} options={[{value:'yes_sig_pos',label:"Yes, we've measured significant positive ROI"},{value:'yes_mod_pos',label:"Yes, we've measured moderate positive ROI"},{value:'yes_min',label:'Yes, but ROI has been minimal so far'},{value:'no_plan_to',label:'No, but we plan to measure it'},{value:'no_plans',label:'No, and no plans to measure it'},{value:'too_early',label:'Too early to measure'},{value:'n/a',label:'Not applicable - not using AI'}]} />
-                <CheckboxGroupInput label="Q25. What measurable improvements have you seen from AI adoption?" description="(Select all that apply)" value={props.responses.measuredImprovements} onChange={(v, e) => props.toggleArrayItem('measuredImprovements', v, e)} otherValues={{'other_specify': props.responses.measuredImprovementsOther}} onOtherChange={(k,v) => props.updateResponse('measuredImprovementsOther', v)} options={[{value:'time_savings',label:'Time savings / efficiency gains'},{value:'cost_reduction',label:'Cost reduction'},{value:'revenue_increase',label:'Revenue increase'},{value:'customer_satisfaction',label:'Improved customer satisfaction scores'},{value:'no_improvements',label:'No measurable improvements yet', isExclusive: true},{value:'havent_measured',label:"Haven't measured", isExclusive: true},{value:'other_specify',label:'Other (please specify)'}]} />
-                <div className="space-y-4 p-4 border border-brand-gray-smoke rounded-lg">
-                  <h3 className="font-medium text-brand-dark-bg">Q26. If you've seen improvements, approximately what has been the impact? (Optional)</h3>
-                  <SelectInput label="Time Savings:" value={props.responses.timeSavings} onChange={v => props.updateResponse('timeSavings', v)} options={[{value:'n/a',label:'Not applicable / Haven\'t measured'},{value:'no_imp',label:'No improvement'},{value:'1-10',label:'1-10% improvement'},{value:'11-25',label:'11-25% improvement'},{value:'26-50',label:'26-50% improvement'},{value:'51-75',label:'51-75% improvement'},{value:'>75',label:'Over 75% improvement'}]} />
-                  <SelectInput label="Cost Reduction:" value={props.responses.costReduction} onChange={v => props.updateResponse('costReduction', v)} options={[{value:'n/a',label:'Not applicable / Haven\'t measured'},{value:'no_red',label:'No reduction'},{value:'1-10',label:'1-10% reduction'},{value:'11-25',label:'11-25% reduction'},{value:'26-50',label:'26-50% reduction'},{value:'>50',label:'Over 50% reduction'}]} />
-                  <SelectInput label="Revenue Impact:" value={props.responses.revenueImpact} onChange={v => props.updateResponse('revenueImpact', v)} options={[{value:'n/a',label:'Not applicable / Haven\'t measured'},{value:'no_imp',label:'No impact'},{value:'1-5',label:'1-5% increase'},{value:'6-10',label:'6-10% increase'},{value:'11-20',label:'11-20% increase'},{value:'>20',label:'Over 20% increase'}]} />
-                </div>
+                <RadioGroupInput label="Q21. Have you measured ROI or business impact from AI implementation?" required={isAiUsed} error={props.errors.measuredRoi} value={props.responses.measuredRoi} onChange={v => props.updateResponse('measuredRoi', v)} options={MEASURED_ROI_OPTIONS} />
+                <CheckboxGroupInput label="Q22. What measurable improvements have you seen from AI adoption?" description="(Select all that apply)" value={props.responses.measuredImprovements} onChange={(v, e) => props.toggleArrayItem('measuredImprovements', v, e)} otherValues={{'other_specify': props.responses.measuredImprovementsOther}} onOtherChange={(k,v) => props.updateResponse('measuredImprovementsOther', v)} options={MEASURED_IMPROVEMENTS_OPTIONS} />
               </>
             );
             case 'challenges': return (
               <>
-                <RankingInput label="Q27. What are the biggest challenges your organization faces with AI implementation?" maxRank={5} required error={props.errors.challengesRanked} value={props.responses.challengesRanked} onChange={v => props.updateResponse('challengesRanked', v)} options={[{value:'privacy',label:'Data privacy and security concerns'},{value:'knowledge',label:'Lack of understanding / knowledge'},{value:'training',label:'Insufficient training'},{value:'cost',label:'High implementation costs'},{value:'integration',label:'Integration with existing systems'},{value:'consistency',label:'Lack of consistency across franchise locations'},{value:'franchisee_resistance',label:'Resistance from franchisees'},{value:'staff_resistance',label:'Resistance from staff'},{value:'too_many_tools',label:'Overwhelming number of AI tool options'},{value:'measuring_roi',label:'Difficulty measuring ROI'},{value:'job_displacement',label:'Concerns about job displacement'},{value:'data_quality',label:'Data quality / availability issues'},{value:'no_challenges',label:'No significant challenges'}]} />
-                <RadioGroupInput label="Q28. Which statement best describes your organization's AI knowledge level?" required error={props.errors.aiKnowledgeLevel} value={props.responses.aiKnowledgeLevel} onChange={v => props.updateResponse('aiKnowledgeLevel', v)} options={[{value:'expert',label:'Expert - We have deep AI expertise internally'},{value:'advanced',label:'Advanced - Strong understanding and active implementation'},{value:'intermediate',label:'Intermediate - Good understanding, early implementation'},{value:'beginner',label:'Beginner - Learning but limited implementation'},{value:'novice',label:'Novice - Just starting to explore AI'},{value:'no_knowledge',label:'No knowledge - Not yet engaged with AI'}]} />
-                <RadioGroupInput label="Q29. Do you have dedicated AI expertise on your team?" required error={props.errors.dedicatedAiExpertise} value={props.responses.dedicatedAiExpertise} onChange={v => props.updateResponse('dedicatedAiExpertise', v)} options={[{value:'yes_full_time',label:'Yes, full-time dedicated AI specialist(s)'},{value:'yes_tech_team',label:'Yes, technology team members with AI expertise'},{value:'no_consultants',label:'No, but we use external consultants'},{value:'no_self_teaching',label:"No, but we're self-teaching"},{value:'no_plans',label:"No, and we don't have plans to add expertise"},{value:'dont_know',label:"Don't know"}]} />
+                <RankingInput label="Q23. What are the biggest challenges your organization faces with AI implementation? (Rank top 5)" maxRank={5} required error={props.errors.challengesRanked} value={props.responses.challengesRanked} onChange={v => props.updateResponse('challengesRanked', v)} options={CHALLENGES_OPTIONS} />
+                <RadioGroupInput label="Q24. Do you have dedicated AI expertise on your team?" required error={props.errors.dedicatedAiExpertise} value={props.responses.dedicatedAiExpertise} onChange={v => props.updateResponse('dedicatedAiExpertise', v)} options={DEDICATED_AI_EXPERTISE_OPTIONS} />
               </>
             );
             case 'data': return (
               <>
-                <ScaleInput required label="Q30. How would you rate your organization's data infrastructure readiness for AI?" value={props.responses.dataInfrastructureReadiness} onChange={v => props.updateResponse('dataInfrastructureReadiness', v)} minLabel="Very Poor" maxLabel="Excellent" description="1: Little to no usable data. 5: Fully prepared with centralized, clean data." />
-                <RadioGroupInput label="Q31. Do you use a centralized data platform or data warehouse?" required error={props.errors.centralizedDataPlatform} value={props.responses.centralizedDataPlatform} onChange={v => props.updateResponse('centralizedDataPlatform', v)} options={[{value:'yes_implemented',label:'Yes, fully implemented and operational'},{value:'yes_implementing',label:'Yes, currently being implemented'},{value:'no_planning',label:'No, but planning to implement within 12 months'},{value:'no_plans',label:'No, and no current plans'},{value:'dont_know',label:"Don't know"}]} />
-                <CheckboxGroupInput label="Q32. What data sources are you using for AI?" description="(Select all that apply)" value={props.responses.dataSources} onChange={(v,e)=>props.toggleArrayItem('dataSources',v,e)} otherValues={{'other_specify': props.responses.dataSourcesOther}} onOtherChange={(k,v)=>props.updateResponse('dataSourcesOther',v)} options={[{value:'pos',label:'POS (Point of Sale) data'},{value:'crm',label:'Customer relationship management (CRM)'},{value:'marketing_automation',label:'Marketing automation platforms'},{value:'financial',label:'Financial systems'},{value:'inventory',label:'Inventory management systems'},{value:'hris',label:'Employee data / HRIS'},{value:'analytics',label:'Website / app analytics'},{value:'social_media',label:'Social media data'},{value:'feedback',label:'Customer feedback / surveys'},{value:'third_party',label:'Third-party market data'},{value:'operational',label:'Operational systems'},{value:'supply_chain',label:'Supply chain data'},{value:'not_using',label:'Not using data for AI', isExclusive: true},{value:'other_specify',label:'Other (please specify)'}]} />
+                <ScaleInput required label="Q25. How would you rate your organization's data infrastructure readiness for AI? (1-5 scale)" value={props.responses.dataInfrastructureReadiness} onChange={v => props.updateResponse('dataInfrastructureReadiness', v)} minLabel="Very Poor" maxLabel="Excellent" description="1: Little to no usable data. 5: Fully prepared with centralized, clean data." />
+                <RadioGroupInput label="Q26. Do you use a centralized data platform or data warehouse?" required error={props.errors.centralizedDataPlatform} value={props.responses.centralizedDataPlatform} onChange={v => props.updateResponse('centralizedDataPlatform', v)} options={CENTRALIZED_DATA_PLATFORM_OPTIONS} />
+                <CheckboxGroupInput label="Q27. What data sources are you using for AI?" description="(Select all that apply)" value={props.responses.dataSources} onChange={(v,e)=>props.toggleArrayItem('dataSources',v,e)} otherValues={{'other_specify': props.responses.dataSourcesOther}} onOtherChange={(k,v)=>props.updateResponse('dataSourcesOther',v)} options={DATA_SOURCES_OPTIONS} />
               </>
             );
             case 'customer': return (
               <>
-                <RadioGroupInput label="Q33. Do you use AI in customer-facing applications?" required error={props.errors.customerFacingAi} value={props.responses.customerFacingAi} onChange={v => props.updateResponse('customerFacingAi', v)} options={[{value:'yes_extensively',label:'Yes, extensively'},{value:'yes_moderately',label:'Yes, moderately'},{value:'yes_in_limited_ways',label:'Yes, in limited ways'},{value:'no_planning',label:'No, but planning to'},{value:'no_plans',label:'No, and no plans to'},{value:'dont_know',label:"Don't know"}]} />
+                <RadioGroupInput label="Q28. Do you use AI in customer-facing applications?" required error={props.errors.customerFacingAi} value={props.responses.customerFacingAi} onChange={v => props.updateResponse('customerFacingAi', v)} options={CUSTOMER_FACING_AI_OPTIONS} />
                 {hasCustomerFacingAi && <>
-                  <CheckboxGroupInput label="Q34. How do customers interact with AI at your locations?" description="(Select all that apply)" value={props.responses.customerAiInteractions} onChange={(v,e)=>props.toggleArrayItem('customerAiInteractions',v,e)} otherValues={{'other_specify':props.responses.customerAiInteractionsOther}} onOtherChange={(k,v)=>props.updateResponse('customerAiInteractionsOther',v)} options={[{value:'website_chatbot',label:'Chatbots on website'},{value:'app_chatbot',label:'Chatbots in mobile app'},{value:'voice_ordering',label:'AI-powered voice ordering'},{value:'phone_answering',label:'AI phone answering systems'},{value:'recommendations',label:'Personalized recommendations'},{value:'email_responses',label:'AI-generated email responses'},{value:'kiosks',label:'Self-service kiosks with AI'},{value:'virtual_assistants',label:'Virtual assistants'},{value:'predictive_text',label:'Predictive text / search'},{value:'no_customer_facing',label:"We don't have customer-facing AI", isExclusive: true},{value:'other_specify',label:'Other (please specify)'}]} />
-                  <RadioGroupInput label="Q35. Are customers informed when they're interacting with AI?" value={props.responses.customerAiDisclosure} onChange={v => props.updateResponse('customerAiDisclosure', v)} options={[{value:'always',label:'Always clearly disclosed'},{value:'sometimes',label:'Sometimes disclosed'},{value:'rarely',label:'Rarely disclosed'},{value:'never',label:'Never disclosed'},{value:'n/a',label:'Not applicable'},{value:'dont_know',label:"Don't know"}]} />
-                  <RadioGroupInput label="Q36. Have you received feedback from customers about AI interactions?" value={props.responses.customerFeedback} onChange={v => props.updateResponse('customerFeedback', v)} options={[{value:'positive',label:'Yes, mostly positive'},{value:'mixed',label:'Yes, mixed feedback'},{value:'negative',label:'Yes, mostly negative'},{value:'no_feedback',label:"No, haven't received specific feedback"},{value:'not_tracked',label:"We don't track this"},{value:'n/a',label:'Not applicable'}]} />
+                  <CheckboxGroupInput label="Q29. How do customers interact with AI at your locations?" description="(Select all that apply)" value={props.responses.customerAiInteractions} onChange={(v,e)=>props.toggleArrayItem('customerAiInteractions',v,e)} otherValues={{'other_specify':props.responses.customerAiInteractionsOther}} onOtherChange={(k,v)=>props.updateResponse('customerAiInteractionsOther',v)} options={CUSTOMER_AI_INTERACTIONS_OPTIONS} />
+                  <RadioGroupInput label="Q30. Have you received feedback from customers about AI interactions?" value={props.responses.customerFeedback} onChange={v => props.updateResponse('customerFeedback', v)} options={CUSTOMER_FEEDBACK_OPTIONS} />
                 </>}
               </>
             );
             case 'future': return (
               <>
-                <RankingInput label="Q37. What are your organization's top AI priorities for the next 12 months?" maxRank={3} required error={props.errors.aiPriorities} value={props.responses.aiPriorities} onChange={v => props.updateResponse('aiPriorities', v)} options={[{value:'ops_efficiency',label:'Operational efficiency / cost reduction'},{value:'customer_experience',label:'Customer experience enhancement'},{value:'marketing_automation',label:'Marketing personalization & automation'},{value:'data_analysis',label:'Data analysis & business intelligence'},{value:'franchisee_support',label:'Franchisee training & support'},{value:'no_priorities',label:'No specific AI priorities'}]} />
-                <CheckboxGroupInput label="Q38. In which areas do you see the greatest potential for AI in franchising?" description="(Select up to 5)" max={5} error={props.errors.greatestAiPotential} value={props.responses.greatestAiPotential} onChange={(v,e)=>props.toggleArrayItem('greatestAiPotential',v,e)} otherValues={{}} onOtherChange={()=>{}} options={[{value:'ops_efficiency',label:'Operational efficiency / cost reduction'},{value:'customer_experience',label:'Customer experience enhancement'},{value:'marketing_automation',label:'Marketing personalization & automation'},{value:'data_analysis',label:'Data analysis & business intelligence'},{value:'franchisee_support',label:'Franchisee training & support'},{value:'site_selection',label:'Site selection / territory planning'},{value:'dynamic_pricing',label:'Dynamic pricing'},{value:'voice_ai',label:'Voice AI / conversational interfaces'}]} />
-                <RadioGroupInput label="Q39. How likely is your organization to increase AI investment in 2026?" required error={props.errors.increaseAiInvestment2026} value={props.responses.increaseAiInvestment2026} onChange={v => props.updateResponse('increaseAiInvestment2026', v)} options={[{value:'very_likely',label:'Very likely - planning significant increase'},{value:'somewhat_likely',label:'Somewhat likely - planning moderate increase'},{value:'neutral',label:'Neutral - may stay the same or increase slightly'},{value:'unlikely',label:'Unlikely - will probably maintain current level'},{value:'very_unlikely',label:'Very unlikely - may decrease investment'},{value:'dont_know',label:"Don't know"}]} />
-                <RankingInput label="Q40. What would most accelerate AI adoption in your organization?" maxRank={3} required error={props.errors.adoptionAccelerators} value={props.responses.adoptionAccelerators} onChange={v => props.updateResponse('adoptionAccelerators', v)} options={[{value:'lower_cost',label:'Lower costs / better ROI'},{value:'better_training',label:'Better training / education'},{value:'more_proof',label:'More proof of effectiveness'},{value:'easier_integration',label:'Easier integration with existing systems'},{value:'reduced_privacy_risk',label:'Reduced data privacy / security concerns'},{value:'industry_solutions',label:'Industry-specific AI solutions'},{value:'buy_in_franchisees',label:'Buy-in from franchisees'},{value:'buy_in_leadership',label:'Buy-in from leadership'}]} />
+                <RadioGroupInput label="Q31. Where do you see the greatest potential for AI specifically at your brand?" required error={props.errors.greatestAiPotential} value={props.responses.greatestAiPotential} onChange={v => props.updateResponse('greatestAiPotential', v)} options={GREATEST_AI_POTENTIAL_SINGLE_OPTIONS} otherValue={props.responses.greatestAiPotentialOther} onOtherChange={v => props.updateResponse('greatestAiPotentialOther', v)} />
+                <RadioGroupInput label="Q32. How likely is your organization to increase AI investment in 2026?" required error={props.errors.increaseAiInvestment2026} value={props.responses.increaseAiInvestment2026} onChange={v => props.updateResponse('increaseAiInvestment2026', v)} options={INCREASE_AI_INVESTMENT_OPTIONS} />
+                <RankingInput label="Q33. What would most accelerate AI adoption in your organization? (Rank top 3)" maxRank={3} required error={props.errors.adoptionAccelerators} value={props.responses.adoptionAccelerators} onChange={v => props.updateResponse('adoptionAccelerators', v)} options={ADOPTION_ACCELERATORS_OPTIONS} />
               </>
             );
             case 'ethics': return (
               <>
-                <RadioGroupInput label="Q41. Does your organization have formal policies governing AI use?" required error={props.errors.aiPolicy} value={props.responses.aiPolicy} onChange={v => props.updateResponse('aiPolicy', v)} options={[{value:'yes_comprehensive',label:'Yes, comprehensive policies in place'},{value:'yes_basic',label:'Yes, basic policies in place'},{value:'in_development',label:'In development'},{value:'no_planning',label:'No, but planning to develop'},{value:'no_plans',label:'No, and no plans to develop'},{value:'dont_know',label:"Don't know"}]} />
-                <CheckboxGroupInput label="Q42. What ethical considerations concern you about AI?" description="(Select all that apply)" required error={props.errors.ethicalConcerns} value={props.responses.ethicalConcerns} onChange={(v, e) => props.toggleArrayItem('ethicalConcerns', v, e)} otherValues={{'other_specify': props.responses.ethicalConcernsOther}} onOtherChange={(k,v) => props.updateResponse('ethicalConcernsOther', v)} options={[{value:'bias',label:'Bias in AI decision-making'},{value:'privacy',label:'Data privacy violations'},{value:'job_displacement',label:'Job displacement'},{value:'transparency',label:'Lack of transparency (black box problem)'},{value:'over_reliance',label:'Over-reliance on AI'},{value:'misinformation',label:'Misinformation / "hallucinations"'},{value:'no_concerns',label:'No significant concerns', isExclusive: true},{value:'other_specify',label:'Other (please specify)'}]} />
-                <ScaleInput label="Q43. On a scale of 1-5, how concerned are you about AI's impact on jobs in the franchise industry?" required value={props.responses.jobImpactConcern} onChange={v => props.updateResponse('jobImpactConcern', v)} minLabel="Not at all concerned" maxLabel="Extremely concerned" />
-                <RadioGroupInput label="Q44. Do you use AI for compliance or regulatory monitoring?" value={props.responses.aiForCompliance} onChange={v => props.updateResponse('aiForCompliance', v)} options={[{value:'yes',label:'Yes'},{value:'no_planning',label:'No, but planning to'},{value:'no_plans',label:'No, and no current plans'},{value:'dont_know',label:"Don't know"}]} />
+                <RadioGroupInput label="Q34. Does your organization have formal policies governing AI use?" required error={props.errors.aiPolicy} value={props.responses.aiPolicy} onChange={v => props.updateResponse('aiPolicy', v)} options={AI_POLICY_OPTIONS} />
+                <CheckboxGroupInput label="Q35. What ethical considerations concern you about AI?" description="(Select all that apply)" required error={props.errors.ethicalConcerns} value={props.responses.ethicalConcerns} onChange={(v, e) => props.toggleArrayItem('ethicalConcerns', v, e)} otherValues={{'other_specify': props.responses.ethicalConcernsOther}} onOtherChange={(k,v) => props.updateResponse('ethicalConcernsOther', v)} options={ETHICAL_CONCERNS_OPTIONS} />
+                <ScaleInput label="Q36. How concerned are you about AI's impact on jobs within your organization? (1-5 scale)" required value={props.responses.jobImpactConcern} onChange={v => props.updateResponse('jobImpactConcern', v)} minLabel="Not at all concerned" maxLabel="Extremely concerned" />
+                <RadioGroupInput label="Q37. Are you using AI for compliance or risk management?" value={props.responses.aiForCompliance} onChange={v => props.updateResponse('aiForCompliance', v)} options={AI_FOR_COMPLIANCE_OPTIONS} />
               </>
             );
             case 'trends': return (
               <>
-                <RadioGroupInput label="Q45. How does your organization's AI adoption compare to your competitors?" required error={props.errors.competitorComparison} value={props.responses.competitorComparison} onChange={v => props.updateResponse('competitorComparison', v)} options={[{value:'ahead',label:'Ahead of the curve'},{value:'on_par',label:'On par with competitors'},{value:'behind',label:'Behind the curve'},{value:'dont_know',label:"Don't know"}]} />
-                <TextAreaInput label="Q46. What is the most exciting AI trend or application you're watching for in the franchise industry?" required error={props.errors.excitingAiTrend} value={props.responses.excitingAiTrend} onChange={v => props.updateResponse('excitingAiTrend', v)} placeholder="e.g., Hyper-personalization, generative AI for marketing, predictive analytics for site selection..." />
-                <TextAreaInput label="Q47. What key questions are you trying to answer with AI right now?" value={props.responses.questionsToAnswer} onChange={v => props.updateResponse('questionsToAnswer', v)} placeholder="e.g., How can we reduce franchisee churn? What is our optimal pricing strategy?" />
+                <RadioGroupInput label="Q38. How would you describe your organization's approach to AI compared to competitors?" required error={props.errors.competitorComparison} value={props.responses.competitorComparison} onChange={v => props.updateResponse('competitorComparison', v)} options={COMPETITOR_COMPARISON_OPTIONS} />
+                <TextAreaInput label="Q39. What AI trend are you most excited or concerned about for franchising?" required error={props.errors.excitingAiTrend} value={props.responses.excitingAiTrend} onChange={v => props.updateResponse('excitingAiTrend', v)} placeholder="e.g., Hyper-personalization, generative AI for marketing, predictive analytics for site selection..." />
               </>
             );
             case 'satisfaction': return (
                 <>
-                  <ScaleInput label="Q48. On a scale of 1-5, how comfortable are you personally with using AI in your daily work?" required value={props.responses.personalAiComfort} onChange={v => props.updateResponse('personalAiComfort', v)} minLabel="Very uncomfortable" maxLabel="Very comfortable" />
-                  <ScaleInput label="Q49. How satisfied are you with the current AI tools you're using?" required value={props.responses.toolSatisfaction} onChange={v => props.updateResponse('toolSatisfaction', v)} minLabel="Very dissatisfied" maxLabel="Very satisfied" description="Rate your overall satisfaction with the AI tools your organization uses." />
-                  <TextAreaInput label="Q50. What's one capability you wish your AI tools had?" value={props.responses.desiredAiCapabilities} onChange={v => props.updateResponse('desiredAiCapabilities', v)} placeholder="e.g., Better integration with our CRM, more industry-specific knowledge, voice command capabilities..." />
+                  <ScaleInput label="Q40. How comfortable are you personally with using AI tools? (1-5 scale)" required value={props.responses.personalAiComfort} onChange={v => props.updateResponse('personalAiComfort', v)} minLabel="Very uncomfortable" maxLabel="Very comfortable" />
+                  <TextAreaInput label="Q41. What AI capabilities are you most hoping to see developed for franchising?" value={props.responses.desiredAiCapabilities} onChange={v => props.updateResponse('desiredAiCapabilities', v)} placeholder="e.g., Better integration with our CRM, more industry-specific knowledge, voice command capabilities..." />
                 </>
             );
+            case 'closing': return (
+              <>
+                <RadioGroupInput label="Q42. Would you like to receive a complimentary copy of the 2025 AI in Franchising Report?" value={props.responses.receiveReport} onChange={v => props.updateResponse('receiveReport', v)} options={RECEIVE_REPORT_OPTIONS} />
+                <TextAreaInput label="Q43. Is there anything about AI in franchising you'd like to know more about, or a topic we didn't ask about that we should have included?" value={props.responses.surveyFeedback} onChange={v => props.updateResponse('surveyFeedback', v)} placeholder="Share topics or questions you'd like us to cover in future surveys." />
+                <RadioGroupInput label="Q44. AGNTMKT puts out this report every year completely free because we believe in franchising and the power of sharing ideas. If you're not sure where to start with AI, we'd love an opportunity to meet with you and share our solutions - or check out our website at agntmkt.ai. Would you like us to follow up with you?" value={props.responses.agntmktFollowUp} onChange={v => props.updateResponse('agntmktFollowUp', v)} options={AGNTMKT_FOLLOW_UP_OPTIONS} />
+              </>
+            );
             case 'review':
-                const reviewableSections = SECTIONS.slice(0, -1); // Exclude the review section itself
                 const anyErrors = Object.values(props.errors).some(e => e !== null);
                 return (
                 <>
                     <h2 className="text-xl font-bold text-brand-dark-bg mb-4">Review Your Answers</h2>
-                    <p className="mb-6 text-brand-gray-graphite">Please review your responses before submitting. You can click on a section to jump back and edit your answers.</p>
-                    
+                    <p className="mb-6 text-brand-gray-graphite">Expand a section below to review your responses. Use the edit button to jump back and make changes before submitting.</p>
+
                     {anyErrors && (
                         <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-6">
                             <div className="flex">
@@ -378,32 +514,64 @@ const renderSectionComponent = (sectionIndex: number, props: SectionProps) => {
                             </div>
                         </div>
                     )}
-            
-                    <div className="space-y-2">
-                        {reviewableSections.map((section, index) => (
-                            <button
-                                key={section.id}
-                                onClick={() => props.jumpToSection?.(index)}
-                                className="w-full flex justify-between items-center p-4 bg-white border border-brand-gray-smoke rounded-lg hover:border-brand-orange hover:bg-brand-orange/10 transition-colors"
-                            >
-                                <div className="flex items-center">
-                                    <span className="text-lg mr-3">{section.icon}</span>
-                                    <span className="font-medium text-brand-dark-bg">{section.name}</span>
+
+                    <div className="space-y-3">
+                        {REVIEW_SECTIONS.map((sectionConfig) => {
+                            const sectionMeta = SECTIONS.find((meta) => meta.id === sectionConfig.id);
+                            const sectionIndex = sectionMeta ? SECTIONS.indexOf(sectionMeta) : -1;
+                            const isOpen = props.openReviewSection === sectionConfig.id;
+                            return (
+                                <div key={sectionConfig.id} className="border border-brand-gray-smoke rounded-lg bg-white">
+                                    <div className="flex items-center justify-between p-4 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => props.onToggleReviewSection?.(sectionConfig.id)}
+                                            className="flex items-center justify-between flex-1 text-left"
+                                        >
+                                            <span className="flex items-center space-x-3">
+                                                <span className="text-lg">{sectionMeta?.icon ?? '📝'}</span>
+                                                <span className="font-semibold text-brand-dark-bg">{sectionConfig.name}</span>
+                                            </span>
+                                            {isOpen ? <ChevronUp className="w-5 h-5 text-brand-gray-steel" /> : <ChevronDown className="w-5 h-5 text-brand-gray-steel" />}
+                                        </button>
+                                        {sectionIndex > -1 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => props.jumpToSection?.(sectionIndex)}
+                                                className="flex items-center px-3 py-1.5 text-sm font-medium text-brand-dark-bg bg-brand-gray-smoke rounded-md hover:bg-brand-gray-steel/60 transition-colors"
+                                            >
+                                                <Edit2 className="w-4 h-4 mr-1" />
+                                                Edit
+                                            </button>
+                                        )}
+                                    </div>
+                                    {isOpen && (
+                                        <div className="border-t border-brand-gray-smoke p-4 space-y-4 bg-brand-orange/5">
+                                            {sectionConfig.questions.map((question) => {
+                                                const answer = formatReviewAnswer(props.responses, question);
+                                                return (
+                                                    <div key={`${sectionConfig.id}-${question.field}`}> 
+                                                        <p className="text-sm font-semibold text-brand-dark-bg">{question.question}</p>
+                                                        {Array.isArray(answer) ? (
+                                                            <ul className="mt-1 list-disc list-inside text-sm text-brand-gray-graphite space-y-1">
+                                                                {answer.map((entry, idx) => (
+                                                                    <li key={idx}>{entry}</li>
+                                                                ))}
+                                                            </ul>
+                                                        ) : (
+                                                            <p className="mt-1 text-sm text-brand-gray-graphite whitespace-pre-wrap">{answer}</p>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
-                                <Edit2 className="w-5 h-5 text-brand-gray-steel" />
-                            </button>
-                        ))}
-                    </div>
-                    
-                    <div className="mt-8 space-y-6 pt-6 border-t border-brand-gray-smoke">
-                        <RadioGroupInput label="Would you like to receive a copy of the 2025 AI in Franchising Report when it's published?" value={props.responses.receiveReport} onChange={v => props.updateResponse('receiveReport', v)} options={[{value: 'yes_full', label: 'Yes, send me the full report'}, {value: 'yes_summary', label: 'Yes, send me the executive summary'}, {value: 'no', label: 'No, thank you'}]} />
-                        <RadioGroupInput label="Would you be open to a follow-up interview to discuss your responses in more detail?" value={props.responses.allowFollowUp} onChange={v => props.updateResponse('allowFollowUp', v)} options={[{value: 'yes', label: 'Yes'}, {value: 'no', label: 'No'}]} />
-                        <RadioGroupInput label="Would you be interested in being featured in a case study (with your permission)?" value={props.responses.caseStudyInterest} onChange={v => props.updateResponse('caseStudyInterest', v)} options={[{value: 'yes', label: 'Yes'}, {value: 'no', label: 'No'}]} />
-                        <TextAreaInput label="Do you have any final comments or thoughts?" value={props.responses.finalComments} onChange={v => props.updateResponse('finalComments', v)} placeholder="Share any additional feedback here." />
-                        <RadioGroupInput label="Would you like to be entered into a drawing for a $500 gift card?" value={props.responses.enterDrawing} onChange={v => props.updateResponse('enterDrawing', v)} options={[{value: 'yes', label: 'Yes'}, {value: 'no', label: 'No'}]} />
+                            );
+                        })}
                     </div>
                 </>
-                )
+                );
             default: return null;
         }
     }
@@ -429,6 +597,7 @@ const App: React.FC = () => {
     const [submissionSuccess, setSubmissionSuccess] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
+    const [openReviewSection, setOpenReviewSection] = useState<string | null>(null);
 
     const updateResponse = useCallback((field: keyof Responses, value: any) => {
         setResponses(prev => {
@@ -466,6 +635,47 @@ const App: React.FC = () => {
             setErrors(prev => ({ ...prev, [field]: null }));
         }
     }, [errors]);
+
+    const getNextSectionIndex = useCallback((sectionIndex: number) => {
+        const defaultNext = Math.min(sectionIndex + 1, SECTIONS.length - 1);
+        const currentId = SECTIONS[sectionIndex]?.id;
+
+        if (!currentId) {
+            return defaultNext;
+        }
+
+        if (currentId === 'tools') {
+            const notUsingAi = responses.aiTools.includes('not_using_ai');
+            if (notUsingAi) {
+                const targetIndex = getSectionIndexById('investment');
+                if (targetIndex > sectionIndex) {
+                    return targetIndex;
+                }
+            }
+        }
+
+        if (currentId === 'franchisee') {
+            const supportsFranchisees = ['yes_extensively', 'yes_moderately', 'yes_in_limited_ways'].includes(responses.franchiseeAiSupport);
+            if (!supportsFranchisees) {
+                const targetIndex = getSectionIndexById('investment');
+                if (targetIndex > sectionIndex) {
+                    return targetIndex;
+                }
+            }
+        }
+
+        if (currentId === 'customer') {
+            const hasCustomerFacingAi = ['yes_extensively', 'yes_moderately', 'yes_in_limited_ways'].includes(responses.customerFacingAi);
+            if (!hasCustomerFacingAi) {
+                const targetIndex = getSectionIndexById('future');
+                if (targetIndex > sectionIndex) {
+                    return targetIndex;
+                }
+            }
+        }
+
+        return defaultNext;
+    }, [responses.aiTools, responses.franchiseeAiSupport, responses.customerFacingAi]);
 
     const currentSectionId = SECTIONS[currentSection]?.id ?? SECTIONS[0].id;
     const highestVisitedSection = history.length
@@ -598,7 +808,6 @@ const App: React.FC = () => {
             case 'usage':
                 checkRequired('personalAiUsage', 'This field is required.');
                 checkRequired('orgAiUsage', 'This field is required.');
-                checkRequired('aiAdoptionDate', 'This field is required.');
                 checkRequired('aiUsageChange', 'This field is required.');
                 break;
             case 'tools':
@@ -608,9 +817,15 @@ const App: React.FC = () => {
                     checkRequired('aiUseCases', 'Please select at least one use case.');
                 }
                 break;
-            case 'corporate':
-                checkRequired('corporateAiUse', 'Please select at least one option.');
+            case 'corporate': {
+                const matrixSelections = Object.values(responses.corporateAiMatrix || {});
+                const hasAnySelections = matrixSelections.some(selection => Array.isArray(selection) && selection.length > 0);
+                if (!hasAnySelections) {
+                    newErrors.corporateAiMatrix = 'Please map at least one department to a purpose.';
+                    isValid = false;
+                }
                 break;
+            }
             case 'franchisee':
                 checkRequired('franchiseeAiSupport', 'This field is required.');
                 if (['yes_extensively', 'yes_moderately', 'yes_in_limited_ways'].includes(responses.franchiseeAiSupport)) {
@@ -624,7 +839,6 @@ const App: React.FC = () => {
                 break;
             case 'challenges':
                 checkRequired('challengesRanked', 'Please rank your top challenges.');
-                checkRequired('aiKnowledgeLevel', 'This field is required.');
                 checkRequired('dedicatedAiExpertise', 'This field is required.');
                 break;
             case 'data':
@@ -634,8 +848,10 @@ const App: React.FC = () => {
                 checkRequired('customerFacingAi', 'This field is required.');
                 break;
             case 'future':
-                checkRequired('aiPriorities', 'Please rank your top priorities.');
-                checkRequired('greatestAiPotential', 'Please select at least one area.');
+                checkRequired('greatestAiPotential', 'Please select an area.');
+                if (responses.greatestAiPotential === 'other') {
+                    checkRequired('greatestAiPotentialOther', 'Please specify the area of greatest potential.');
+                }
                 checkRequired('increaseAiInvestment2026', 'This field is required.');
                 checkRequired('adoptionAccelerators', 'Please rank the accelerators.');
                 break;
@@ -664,10 +880,11 @@ const App: React.FC = () => {
     const handleNext = async () => {
         if (validateSection(currentSection)) {
             if (currentSection < SECTIONS.length - 1) {
-                const nextSection = currentSection + 1;
+                const nextSection = getNextSectionIndex(currentSection);
                 setCurrentSection(nextSection);
-                if (!history.includes(nextSection)) {
-                    setHistory(prev => [...prev, nextSection]);
+                setHistory(prev => (prev.includes(nextSection) ? prev : [...prev, nextSection]));
+                if (SECTIONS[nextSection].id === 'review') {
+                    setOpenReviewSection(null);
                 }
                 window.scrollTo(0, 0);
             } else {
@@ -713,6 +930,10 @@ const App: React.FC = () => {
             window.scrollTo(0, 0);
         }
     };
+
+    const handleToggleReviewSection = useCallback((sectionId: string) => {
+        setOpenReviewSection(prev => (prev === sectionId ? null : sectionId));
+    }, []);
 
     const handleStartSurvey = () => {
         setStatus(SurveyStatus.IN_PROGRESS);
@@ -764,7 +985,7 @@ const App: React.FC = () => {
                                 </div>
                             </div>
 
-                            {renderSectionComponent(currentSection, { responses, updateResponse, toggleArrayItem, errors, jumpToSection })}
+                            {renderSectionComponent(currentSection, { responses, updateResponse, toggleArrayItem, errors, jumpToSection, openReviewSection, onToggleReviewSection: handleToggleReviewSection })}
 
                             {submissionError && (
                                 <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -785,7 +1006,7 @@ const App: React.FC = () => {
                                     disabled={isSubmitting}
                                     className="flex items-center px-6 py-3 font-bold text-white bg-brand-orange rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isSubmitting ? 'Submitting...' : (currentSection === SECTIONS.length - 1 ? 'Submit' : 'Next')}
+                                    {isSubmitting ? 'Submitting...' : (currentSection === SECTIONS.length - 1 ? 'Submit' : currentSectionData.id === 'closing' ? 'Review Your Answers' : 'Next')}
                                     {!isSubmitting && (currentSection === SECTIONS.length - 1 ? <Check className="w-5 h-5 ml-2" /> : <ChevronRight className="w-5 h-5 ml-2" />)}
                                 </button>
                             </div>

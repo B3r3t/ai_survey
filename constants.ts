@@ -1,21 +1,25 @@
 import { Section, Responses, ProgressBarGroup } from './types';
 
+export const TOTAL_QUESTIONS = 44;
+export const ESTIMATED_TIME = '12-14 minutes';
+
 export const SECTIONS: Section[] = [
-  { id: 'demographics', name: 'Demographics', icon: '🏢', estimatedMinutes: 2 },
-  { id: 'usage', name: 'Usage', icon: '📈', estimatedMinutes: 1 },
-  { id: 'tools', name: 'Tools', icon: '🛠️', estimatedMinutes: 2 },
-  { id: 'corporate', name: 'Corporate AI', icon: '💼', estimatedMinutes: 1 },
-  { id: 'franchisee', name: 'Franchisee AI', icon: '🤝', estimatedMinutes: 2 },
-  { id: 'investment', name: 'Investment', icon: '💰', estimatedMinutes: 1 },
-  { id: 'roi', name: 'ROI', icon: '📊', estimatedMinutes: 2 },
-  { id: 'challenges', name: 'Challenges', icon: '⚡', estimatedMinutes: 2 },
-  { id: 'data', name: 'Data', icon: '💾', estimatedMinutes: 1 },
-  { id: 'customer', name: 'Customer AI', icon: '💬', estimatedMinutes: 2 },
-  { id: 'future', name: 'Future Plans', icon: '🚀', estimatedMinutes: 2 },
-  { id: 'ethics', name: 'Ethics & Risk', icon: '📜', estimatedMinutes: 1 },
-  { id: 'trends', name: 'Trends', icon: '🌐', estimatedMinutes: 1 },
-  { id: 'satisfaction', name: 'Satisfaction', icon: '😊', estimatedMinutes: 1 },
-  { id: 'review', name: 'Review', icon: '✅', estimatedMinutes: 1 },
+  { id: 'demographics', name: 'Demographics', icon: '🏢', estimatedMinutes: 2, questionCount: 6 },
+  { id: 'usage', name: 'AI Usage', icon: '📈', estimatedMinutes: 1, questionCount: 3 },
+  { id: 'tools', name: 'Tools', icon: '🛠️', estimatedMinutes: 2, questionCount: 3 },
+  { id: 'corporate', name: 'Corporate AI', icon: '💼', estimatedMinutes: 1, questionCount: 1 },
+  { id: 'franchisee', name: 'Franchisee Support', icon: '🤝', estimatedMinutes: 2, questionCount: 4 },
+  { id: 'investment', name: 'Investment', icon: '💰', estimatedMinutes: 1, questionCount: 3 },
+  { id: 'roi', name: 'ROI', icon: '📊', estimatedMinutes: 2, questionCount: 2 },
+  { id: 'challenges', name: 'Challenges', icon: '⚡', estimatedMinutes: 2, questionCount: 2 },
+  { id: 'data', name: 'Data Infrastructure', icon: '💾', estimatedMinutes: 1, questionCount: 3 },
+  { id: 'customer', name: 'Customer AI', icon: '💬', estimatedMinutes: 2, questionCount: 3 },
+  { id: 'future', name: 'Future Plans', icon: '🚀', estimatedMinutes: 2, questionCount: 3 },
+  { id: 'ethics', name: 'Ethics & Compliance', icon: '📜', estimatedMinutes: 1, questionCount: 4 },
+  { id: 'trends', name: 'Industry Trends', icon: '🌐', estimatedMinutes: 1, questionCount: 2 },
+  { id: 'satisfaction', name: 'Satisfaction', icon: '😊', estimatedMinutes: 1, questionCount: 2 },
+  { id: 'closing', name: 'Report & Follow-up', icon: '📬', estimatedMinutes: 1, questionCount: 3 },
+  { id: 'review', name: 'Review', icon: '✅', estimatedMinutes: 1, questionCount: 0 },
 ];
 
 export const PROGRESS_BAR_GROUPS: ProgressBarGroup[] = [
@@ -42,7 +46,7 @@ export const PROGRESS_BAR_GROUPS: ProgressBarGroup[] = [
   {
     name: 'Finalize',
     icon: '✅',
-    sectionIds: ['satisfaction', 'review'],
+    sectionIds: ['satisfaction', 'closing', 'review'],
   },
 ];
 
@@ -61,7 +65,6 @@ export const INITIAL_RESPONSES: Responses = {
   // Section 2
   personalAiUsage: '',
   orgAiUsage: '',
-  aiAdoptionDate: '',
   aiUsageChange: '',
 
   // Section 3
@@ -74,9 +77,7 @@ export const INITIAL_RESPONSES: Responses = {
   aiUseCasesOther: '',
 
   // Section 4
-  corporateAiUse: [],
-  corporateAiUseOther: '',
-  topDepartmentsAi: [],
+  corporateAiMatrix: {},
 
   // Section 5
   franchiseeAiSupport: '',
@@ -89,8 +90,6 @@ export const INITIAL_RESPONSES: Responses = {
   // Section 6
   annualAiBudget: '',
   aiBudgetChange: '',
-  aiBudgetSource: [],
-  aiBudgetSourceOther: '',
   aiInvestmentDecisionMaker: '',
   aiInvestmentDecisionMakerOther: '',
 
@@ -98,14 +97,10 @@ export const INITIAL_RESPONSES: Responses = {
   measuredRoi: '',
   measuredImprovements: [],
   measuredImprovementsOther: '',
-  timeSavings: '',
-  costReduction: '',
-  revenueImpact: '',
 
   // Section 8
   challengesRanked: Array(5).fill(''),
   challengesOther: '',
-  aiKnowledgeLevel: '',
   dedicatedAiExpertise: '',
 
   // Section 9
@@ -118,13 +113,11 @@ export const INITIAL_RESPONSES: Responses = {
   customerFacingAi: '',
   customerAiInteractions: [],
   customerAiInteractionsOther: '',
-  customerAiDisclosure: '',
   customerFeedback: '',
-  
+
   // Section 11
-  aiPriorities: Array(3).fill(''),
-  aiPrioritiesOther: '',
-  greatestAiPotential: [],
+  greatestAiPotential: '',
+  greatestAiPotentialOther: '',
   increaseAiInvestment2026: '',
   adoptionAccelerators: Array(3).fill(''),
   adoptionAcceleratorsOther: '',
@@ -139,17 +132,13 @@ export const INITIAL_RESPONSES: Responses = {
   // Section 13
   competitorComparison: '',
   excitingAiTrend: '',
-  questionsToAnswer: '',
 
   // Section 14
   personalAiComfort: 3,
-  toolSatisfaction: 3,
   desiredAiCapabilities: '',
 
   // Section 15
   receiveReport: 'yes_full',
-  allowFollowUp: 'no',
-  caseStudyInterest: 'no',
-  finalComments: '',
-  enterDrawing: 'yes',
+  surveyFeedback: '',
+  agntmktFollowUp: '',
 };

@@ -3,6 +3,7 @@ export interface Section {
   name: string;
   icon: string;
   estimatedMinutes: number;
+  questionCount: number;
 }
 
 export interface ProgressBarGroup {
@@ -25,7 +26,6 @@ export interface Responses {
   // Section 2
   personalAiUsage: string;
   orgAiUsage: string;
-  aiAdoptionDate: string;
   aiUsageChange: string;
 
   // Section 3
@@ -36,11 +36,9 @@ export interface Responses {
   primaryAiTool: string;
   aiUseCases: string[];
   aiUseCasesOther: string;
-  
+
   // Section 4
-  corporateAiUse: string[];
-  corporateAiUseOther: string;
-  topDepartmentsAi: string[];
+  corporateAiMatrix: Record<string, string[]>;
 
   // Section 5
   franchiseeAiSupport: string;
@@ -53,8 +51,6 @@ export interface Responses {
   // Section 6
   annualAiBudget: string;
   aiBudgetChange: string;
-  aiBudgetSource: string[];
-  aiBudgetSourceOther: string;
   aiInvestmentDecisionMaker: string;
   aiInvestmentDecisionMakerOther: string;
 
@@ -62,14 +58,10 @@ export interface Responses {
   measuredRoi: string;
   measuredImprovements: string[];
   measuredImprovementsOther: string;
-  timeSavings: string;
-  costReduction: string;
-  revenueImpact: string;
 
   // Section 8
   challengesRanked: string[];
   challengesOther: string;
-  aiKnowledgeLevel: string;
   dedicatedAiExpertise: string;
 
   // Section 9
@@ -82,17 +74,15 @@ export interface Responses {
   customerFacingAi: string;
   customerAiInteractions: string[];
   customerAiInteractionsOther: string;
-  customerAiDisclosure: string;
   customerFeedback: string;
-  
+
   // Section 11
-  aiPriorities: string[];
-  aiPrioritiesOther: string;
-  greatestAiPotential: string[];
+  greatestAiPotential: string;
+  greatestAiPotentialOther: string;
   increaseAiInvestment2026: string;
   adoptionAccelerators: string[];
   adoptionAcceleratorsOther: string;
-  
+
   // Section 12
   aiPolicy: string;
   ethicalConcerns: string[];
@@ -103,19 +93,15 @@ export interface Responses {
   // Section 13
   competitorComparison: string;
   excitingAiTrend: string;
-  questionsToAnswer: string;
 
   // Section 14
   personalAiComfort: number;
-  toolSatisfaction: number;
   desiredAiCapabilities: string;
 
   // Section 15
   receiveReport: string;
-  allowFollowUp: string;
-  caseStudyInterest: string;
-  finalComments: string;
-  enterDrawing: string;
+  surveyFeedback: string;
+  agntmktFollowUp: string;
 }
 
 export type Errors = {
