@@ -37,7 +37,7 @@ import {
   AI_FOR_COMPLIANCE_OPTIONS,
   COMPETITOR_COMPARISON_OPTIONS,
   RECEIVE_REPORT_OPTIONS,
-  AGNTMKT_FOLLOW_UP_OPTIONS,
+  AGNTMKT_FOLLOWUP_OPTIONS,
 } from './surveyOptions';
 
 const buildOptionMap = (options: Option[]): Record<string, string> =>
@@ -82,7 +82,7 @@ const OPTION_LABELS = {
   aiForCompliance: buildOptionMap(AI_FOR_COMPLIANCE_OPTIONS),
   competitorComparison: buildOptionMap(COMPETITOR_COMPARISON_OPTIONS),
   receiveReport: buildOptionMap(RECEIVE_REPORT_OPTIONS),
-  agntmktFollowUp: buildOptionMap(AGNTMKT_FOLLOW_UP_OPTIONS),
+  agntmktFollowUp: buildOptionMap(AGNTMKT_FOLLOWUP_OPTIONS),
 } as const;
 
 type SingleChoiceQuestion = {
@@ -555,9 +555,9 @@ export const REVIEW_SECTIONS: ReviewSectionConfig[] = [
       },
       {
         type: 'single',
-        field: 'agntmktFollowUp',
+        field: 'agntmktFollowup',
         question: 'Q44. AGNTMKT puts out this report every year completely free because we believe in franchising and the power of sharing ideas. If you\'re not sure where to start with AI, we\'d love an opportunity to meet with you and share our solutions - or check out our website at agntmkt.ai. Would you like us to follow up with you?',
-        optionKey: 'agntmktFollowUp',
+        optionKey: 'agntmktFollowup',
       },
     ],
   },
