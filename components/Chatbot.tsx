@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import DOMPurify from 'dompurify';
 import { X, Send, Bot } from 'lucide-react';
 import { ChatMessage, Responses } from '../types';
 import { REVIEW_SECTIONS } from '../reviewConfig';
@@ -13,6 +14,66 @@ interface ChatbotProps {
     responses: Responses;
   };
 }
+
+const ASSISTANT_ALLOWED_TAGS = ['p', 'ul', 'ol', 'li', 'strong', 'em', 'a', 'code', 'pre', 'br', 'span'];
+const ASSISTANT_ALLOWED_ATTR = ['href', 'title', 'target', 'rel'];
+
+const sanitizeAssistantContent = (content: string) => {
+  const trimmed = content.trim();
+
+  if (!trimmed) {
+    return '';
+  }
+
+  const containsHtml = /<\/?[a-z][\s\S]*>/i.test(trimmed);
+
+  const ensureBasicMarkup = (value: string) => {
+    const normalized = value
+      .split(/\n{2,}/)
+      .map(paragraph => paragraph.trim())
+      .filter(paragraph => paragraph.length > 0)
+      .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br />')}</p>`)
+      .join('');
+
+    return normalized || `<p>${value}</p>`;
+  };
+
+  const htmlContent = containsHtml ? trimmed : ensureBasicMarkup(trimmed);
+
+  const sanitized = DOMPurify.sanitize(htmlContent, {
+    ALLOWED_TAGS: ASSISTANT_ALLOWED_TAGS,
+    ALLOWED_ATTR: ASSISTANT_ALLOWED_ATTR
+  });
+
+  if (!sanitized.includes('<a') || typeof DOMParser === 'undefined') {
+    return sanitized;
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(sanitized, 'text/html');
+
+  doc.querySelectorAll('a').forEach(anchor => {
+    if (!anchor.getAttribute('target')) {
+      anchor.setAttribute('target', '_blank');
+    }
+    const rel = anchor.getAttribute('rel')?.split(' ').filter(Boolean) ?? [];
+    if (!rel.includes('noopener')) {
+      rel.push('noopener');
+    }
+    if (!rel.includes('noreferrer')) {
+      rel.push('noreferrer');
+    }
+    anchor.setAttribute('rel', rel.join(' '));
+  });
+
+  return doc.body.innerHTML;
+};
+
+const createAssistantMessage = (content: string): ChatMessage => ({
+  role: 'assistant',
+  content,
+  formattedContent: sanitizeAssistantContent(content)
+});
 
 const buildSystemPrompt = (sectionData?: { sectionName: string; sectionId: string; responses: Responses }) => {
   const knowledgeBase = `
@@ -116,12 +177,21 @@ Your role:
 - Be encouraging and concise
 - Never tell users what to answer - help them understand so they can answer accurately
 
+Response style:
+- Reply with concise HTML snippets (no <html> or <body> tags)
+- Use bold highlights and short bullet lists where helpful
+- Limit bullet lists to five items or fewer
+- Link to resources with <a> tags when providing URLs
+- Keep language succinct while staying friendly
+
 ${knowledgeBase}${context}`;
 };
 
 const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, currentSectionData }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', content: "Hello! I'm your AI assistant for this survey. How can I help you understand the questions or the field of AI in franchising?" }
+    createAssistantMessage(
+      '<p><strong>Hi there!</strong> I\'m your AI survey assistant.</p><ul><li>Ask about question intent or definitions.</li><li>Get quick AI-in-franchising facts.</li><li>Request clarification in plain language.</li></ul><p>How can I support you?</p>'
+    )
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -160,7 +230,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, currentSectionData }
 
       setMessages(prev => {
         placeholderAdded = true;
-        return [...prev, { role: 'assistant', content: '…' }];
+        return [...prev, createAssistantMessage('…')];
       });
 
       const response = await fetch('/api/anthropic-chat', {
@@ -192,19 +262,16 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, currentSectionData }
 
       setMessages(prev => {
         const updated = placeholderAdded ? prev.slice(0, -1) : prev;
-        return [...updated, { role: 'assistant', content: reply }];
+        return [...updated, createAssistantMessage(reply)];
       });
     } catch (error) {
       console.error('Anthropic API error:', error);
       const details =
         error instanceof Error && error.message ? ` (${error.message})` : '';
-      const errorMessage: ChatMessage = {
-        role: 'assistant',
-        content: `Sorry, I ran into an error${details}. Please try again.`
-      };
+      const errorMessage = createAssistantMessage(`Sorry, I ran into an error${details}. Please try again.`);
       setMessages(prev => {
         if (placeholderAdded) {
-            return [...prev.slice(0, -1), errorMessage];
+          return [...prev.slice(0, -1), errorMessage];
         }
         return [...prev, errorMessage];
       });
@@ -215,10 +282,10 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, currentSectionData }
   
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
+      e.preventDefault();
+      handleSend();
     }
-  }
+  };
 
   if (!isOpen || !portalElement) return null;
 
@@ -239,7 +306,14 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, currentSectionData }
           {messages.map((msg, index) => (
             <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${msg.role === 'user' ? 'bg-brand-orange text-white rounded-br-none' : 'bg-brand-gray-cloud text-brand-dark-bg rounded-bl-none'}`}>
-                <p className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+                {msg.role === 'assistant' ? (
+                  <div
+                    className="text-sm space-y-2"
+                    dangerouslySetInnerHTML={{ __html: msg.formattedContent ?? sanitizeAssistantContent(msg.content) }}
+                  />
+                ) : (
+                  <p className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+                )}
               </div>
             </div>
           ))}
