@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 import { createClient } from '@supabase/supabase-js';
 import { Responses } from './types';
 import { sanitizeResponses, cleanArray } from './lib/sanitize';
@@ -28,11 +30,12 @@ const mapDbRowToResponses = (row: Record<string, unknown>): Partial<Responses> =
     }, {});
 
     const responses: Partial<Responses> = {};
+    const assignableResponses = responses as Record<keyof Responses, Responses[keyof Responses]>;
 
     (Object.keys(INITIAL_RESPONSES) as (keyof Responses)[]).forEach((key) => {
         const value = camelCased[key as string];
         if (value !== undefined && value !== null) {
-            responses[key] = value as Responses[keyof Responses];
+            assignableResponses[key] = value as Responses[keyof Responses];
         }
     });
 

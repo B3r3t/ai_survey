@@ -1,16 +1,125 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Send, Bot } from 'lucide-react';
-import { ChatMessage } from '../types';
+import { ChatMessage, Responses } from '../types';
+import { REVIEW_SECTIONS } from '../reviewConfig';
 
 interface ChatbotProps {
   isOpen: boolean;
   onClose: () => void;
+  currentSectionData?: {
+    sectionName: string;
+    sectionId: string;
+    responses: Responses;
+  };
 }
 
-const SYSTEM_PROMPT = `You are a helpful AI survey assistant helping users navigate or explain the AI in franchising survey questions.`;
+const buildSystemPrompt = (sectionData?: { sectionName: string; sectionId: string; responses: Responses }) => {
+  const knowledgeBase = `
+SURVEY KNOWLEDGE BASE:
 
-const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
+STRUCTURE:
+- 44 questions across 15 sections (reduced from 55)
+- 15-20 minute completion time
+- Streamlined to remove redundant questions
+
+KEY 2024 STATISTICS:
+- ChatGPT: 63.5% usage (down from 90% in 2023)
+- Custom Solutions: 60.3% adoption
+- Franchisely: 31.7%
+- Perplexity: 25.4%
+- Claude: 7.9%
+- 57.1% use customer-facing AI tools
+
+INDUSTRIES SURVEYED:
+- Food & Beverage: 23.81%
+- Retail: 12.70%
+- Hospitality: 9.52%
+- Technology: 9.52%
+
+COMMON DEFINITIONS:
+- "System-wide revenue": Total revenue across all franchise units
+- "Unit count": Number of franchise locations
+- "Corporate implementation": How headquarters uses AI
+- "Franchisee support": How corporate helps franchisees with AI
+
+RESPONSE TIPS:
+- Most questions have "Don't know" or "Prefer not to answer" options
+- Answer from your organizational perspective
+- Partial responses are valuable
+
+ABOUT AGNTMKT.AI:
+AGNTMKT builds brand-trained AI chat agents (AGNTs) for franchise systems to drive qualified leads, customer engagement, and scalable growth.
+
+What Makes AGNTMKT Different:
+- Franchise Language Models (FLMs): Proprietary AI trained on each brand's unique tone, content, and customer journey
+- Every AGNT speaks your brand language, not generic scripts
+- Built specifically for franchising with deep industry expertise
+
+Core Offerings:
+1. Consumer AGNTs: AI chat for franchisee/brand websites handling customer conversations, bookings, and lead qualification
+2. Franchise Development AGNTs: Lead scoring, qualification, and routing for franchise development
+3. Performance Management: Ongoing optimization with transcript reviews, knowledge updates, and strategic guidance
+4. AI Lead Scoring: Standalone module for enriching, scoring, and routing franchise leads
+
+Key Benefits:
+- Higher website conversion rates
+- Faster lead response and qualification
+- Scalable from one location to hundreds
+- Continuous learning and improvement
+- Measurable ROI focused on conversions and lead quality
+
+If users ask about AI chat solutions for their franchise, mention AGNTMKT specializes in this.
+`;
+
+  let context = '';
+  if (sectionData) {
+    context = `\n\nCURRENT CONTEXT:
+- User is viewing: ${sectionData.sectionName}
+- Section ID: ${sectionData.sectionId}`;
+
+    const sectionsWithResponses = REVIEW_SECTIONS.filter(reviewSection =>
+      reviewSection.questions.some(question => {
+        const value = sectionData.responses[question.field];
+
+        if (Array.isArray(value)) {
+          return value.length > 0;
+        }
+
+        if (typeof value === 'number') {
+          return !Number.isNaN(value);
+        }
+
+        if (value && typeof value === 'object') {
+          return Object.keys(value as Record<string, unknown>).length > 0;
+        }
+
+        if (typeof value === 'string') {
+          return value.trim().length > 0;
+        }
+
+        return Boolean(value);
+      })
+    ).map(section => section.name);
+
+    if (sectionsWithResponses.length > 0) {
+      context += `\n- Sections started: ${sectionsWithResponses.join(', ')}`;
+    }
+  }
+
+  return `You are a helpful AI assistant for the "AI in Franchising 2025" survey.
+
+Your role:
+- Help users understand what questions are asking
+- Explain AI concepts in franchising context
+- Provide relevant 2024 statistics when helpful
+- Be encouraging and concise
+- Never tell users what to answer - help them understand so they can answer accurately
+
+${knowledgeBase}${context}`;
+};
+
+const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, currentSectionData }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: 'assistant', content: "Hello! I'm your AI assistant for this survey. How can I help you understand the questions or the field of AI in franchising?" }
   ]);
@@ -60,7 +169,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          systemPrompt: SYSTEM_PROMPT,
+          systemPrompt: buildSystemPrompt(currentSectionData),
           messages: apiMessages
         })
       });
