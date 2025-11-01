@@ -25,24 +25,58 @@ export const cleanArray = (arr: unknown[]): string[] => {
         .filter(item => item.length > 0);
 };
 
+const isStringArrayRecord = (value: unknown): value is Record<string, string[]> => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        return false;
+    }
+
+    return Object.values(value).every(item => Array.isArray(item));
+};
+
+const sanitizeResponseValue = (value: Responses[keyof Responses]): Responses[keyof Responses] => {
+    if (typeof value === 'string') {
+        return sanitizeInput(value) as Responses[keyof Responses];
+    }
+
+    if (Array.isArray(value)) {
+        return cleanArray(value) as Responses[keyof Responses];
+    }
+
+    if (isStringArrayRecord(value)) {
+        const sanitizedEntries = Object.entries(value).reduce<Record<string, string[]>>((acc, [key, entries]) => {
+            const cleaned = cleanArray(entries);
+            if (cleaned.length > 0) {
+                acc[key] = cleaned;
+            }
+            return acc;
+        }, {});
+
+        return sanitizedEntries as Responses[keyof Responses];
+    }
+
+    return value;
+};
+
 /**
  * Sanitize all responses
  */
-export const sanitizeResponses = (responses: Partial<Responses>): Partial<Responses> => {
-    const sanitized: Partial<Responses> = {};
+export const sanitizeResponses = (responses?: Partial<Responses>): Partial<Responses> => {
+    if (!responses) {
+        return {};
+    }
 
-    Object.keys(responses).forEach((key) => {
-        const typedKey = key as keyof Responses;
-        const value = responses[typedKey];
+    const sanitizedEntries: Partial<Responses> = {};
+    const assignable = sanitizedEntries as Record<keyof Responses, Responses[keyof Responses]>;
 
-        if (typeof value === 'string') {
-            sanitized[typedKey] = sanitizeInput(value) as Responses[keyof Responses];
-        } else if (Array.isArray(value)) {
-            sanitized[typedKey] = cleanArray(value) as Responses[keyof Responses];
-        } else {
-            sanitized[typedKey] = value as Responses[keyof Responses];
+    (Object.keys(responses) as (keyof Responses)[]).forEach((key) => {
+        const value = responses[key];
+
+        if (value === undefined || value === null) {
+            return;
         }
+
+        assignable[key] = sanitizeResponseValue(value);
     });
 
-    return sanitized;
+    return sanitizedEntries;
 };

@@ -1,11 +1,11 @@
-import React, { useState, useCallback, useId, useMemo } from 'react';
+import React, { useState, useCallback, useId, useMemo, useEffect } from 'react';
 import { SECTIONS, INITIAL_RESPONSES, PROGRESS_BAR_GROUPS } from './constants';
 import { Responses, Errors, SurveyStatus, Section } from './types';
 import ProgressBar from './components/ProgressBar';
 import IntroScreen from './components/IntroScreen';
 import CompletionScreen from './components/WelcomeScreen';
 import Chatbot from './components/Chatbot';
-import { ChevronLeft, ChevronRight, Check, AlertCircle, Edit2, Clock, ChevronsUpDown, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, AlertCircle, Edit2, Clock, ChevronsUpDown, MessageCircle, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { submitSurveyResponse, type SessionLoadData } from './supabaseClient';
 import { useSessionId, useAutoSave, useLoadSession } from './hooks/useAutoSave';
 import { sanitizeInput } from './lib/sanitize';
@@ -51,6 +51,8 @@ import {
 import { REVIEW_SECTIONS, formatReviewAnswer } from './reviewConfig';
 
 const getSectionIndexById = (id: string) => SECTIONS.findIndex(section => section.id === id);
+
+const CHAT_PROMPT_STORAGE_KEY = 'agntmkt_chat_prompt_dismissed';
 
 // --- Reusable Input Components ---
 
@@ -202,10 +204,13 @@ const CorporateAIMatrixInput: React.FC<{
   required?: boolean;
   error?: string | null;
 }> = ({ label, description, departments, purposes, value, onChange, required, error }) => {
-  const purposeOrder = useMemo(() => purposes.reduce<Record<string, number>>((acc, option, index) => {
-    acc[option.value] = index;
-    return acc;
-  }, {}), [purposes]);
+  const purposeOrder = useMemo<Record<string, number>>(() => {
+    const orderMap: Record<string, number> = {};
+    purposes.forEach((option, index) => {
+      orderMap[option.value] = index;
+    });
+    return orderMap;
+  }, [purposes]);
 
   const exclusiveValues = useMemo(
     () => purposes.filter(option => option.isExclusive).map(option => option.value),
@@ -591,6 +596,16 @@ const App: React.FC = () => {
     const [history, setHistory] = useState<number[]>([0]);
     const [status, setStatus] = useState<SurveyStatus>(SurveyStatus.NOT_STARTED);
     const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+    const [hasChatPromptBeenDismissed, setHasChatPromptBeenDismissed] = useState<boolean>(() => {
+        if (typeof window === 'undefined') {
+            return false;
+        }
+
+        return window.localStorage.getItem(CHAT_PROMPT_STORAGE_KEY) === 'true';
+    });
+    const [showChatPrompt, setShowChatPrompt] = useState(false);
+    const [chatPromptAnimating, setChatPromptAnimating] = useState(false);
+    const [chatPromptVisible, setChatPromptVisible] = useState(false);
     const sessionId = useSessionId();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -718,11 +733,12 @@ const App: React.FC = () => {
         if (sectionIndex >= 0) {
             setCurrentSection(sectionIndex);
             setHistory(prev => {
-                const merged = new Set(prev);
+                const merged = new Set<number>(prev);
                 for (let i = 0; i <= sectionIndex; i += 1) {
                     merged.add(i);
                 }
-                return Array.from(merged).sort((a, b) => a - b);
+                const sortedHistory = [...merged].sort((a: number, b: number) => a - b);
+                return sortedHistory;
             });
         }
 
@@ -751,13 +767,17 @@ const App: React.FC = () => {
         let isValid = true;
         const sanitizedUpdates: Partial<Responses> = {};
 
-        const checkRequired = (field: keyof Responses, errorMsg: string) => {
+        const assignSanitizedUpdate = <K extends keyof Responses>(key: K, sanitizedValue: Responses[K]) => {
+            sanitizedUpdates[key] = sanitizedValue;
+        };
+
+        const checkRequired = <K extends keyof Responses>(field: K, errorMsg: string) => {
             const value = responses[field];
 
             if (typeof value === 'string') {
                 const cleaned = sanitizeInput(value).trim();
                 if (cleaned !== value) {
-                    sanitizedUpdates[field] = cleaned as Responses[keyof Responses];
+                    assignSanitizedUpdate(field, cleaned as Responses[K]);
                 }
                 if (!cleaned) {
                     newErrors[field] = errorMsg;
@@ -773,7 +793,7 @@ const App: React.FC = () => {
 
                 const hasChanged = sanitizedArray.some((item, index) => item !== (value as unknown[])[index]);
                 if (hasChanged) {
-                    sanitizedUpdates[field] = sanitizedArray as Responses[keyof Responses];
+                    assignSanitizedUpdate(field, sanitizedArray as Responses[K]);
                 }
 
                 if (sanitizedArray.length === 0 || sanitizedArray.every(item => item === '')) {
@@ -940,8 +960,85 @@ const App: React.FC = () => {
         window.scrollTo(0, 0);
     };
 
+    const dismissChatPrompt = useCallback(() => {
+        setShowChatPrompt(false);
+        setHasChatPromptBeenDismissed(true);
+
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem(CHAT_PROMPT_STORAGE_KEY, 'true');
+        }
+    }, []);
+
+    const handleChatPromptClick = useCallback(() => {
+        setIsChatbotOpen(true);
+        dismissChatPrompt();
+    }, [dismissChatPrompt]);
+
+    const handleChatPromptDismiss = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation();
+        dismissChatPrompt();
+    }, [dismissChatPrompt]);
+
+    const handleChatPromptKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            handleChatPromptClick();
+        }
+    }, [handleChatPromptClick]);
+
     const currentSectionData = SECTIONS[currentSection];
     const remainingTime = SECTIONS.slice(currentSection).reduce((acc, s) => acc + s.estimatedMinutes, 0);
+
+    useEffect(() => {
+        if (!showChatPrompt) {
+            setChatPromptVisible(false);
+            return;
+        }
+
+        if (typeof window === 'undefined') {
+            setChatPromptVisible(true);
+            return;
+        }
+
+        const frame = window.requestAnimationFrame(() => setChatPromptVisible(true));
+        return () => window.cancelAnimationFrame(frame);
+    }, [showChatPrompt]);
+
+    useEffect(() => {
+        if (!showChatPrompt) {
+            return;
+        }
+
+        setChatPromptAnimating(true);
+
+        const bounceTimer = window.setTimeout(() => setChatPromptAnimating(false), 1200);
+        const dismissTimer = window.setTimeout(() => {
+            dismissChatPrompt();
+        }, 10000);
+
+        return () => {
+            window.clearTimeout(bounceTimer);
+            window.clearTimeout(dismissTimer);
+        };
+    }, [showChatPrompt, dismissChatPrompt]);
+
+    useEffect(() => {
+        if (hasChatPromptBeenDismissed) {
+            return;
+        }
+
+        const isDemographics = SECTIONS[currentSection]?.id === 'demographics';
+
+        if (status === SurveyStatus.IN_PROGRESS && isDemographics && !isChatbotOpen && !showChatPrompt) {
+            setShowChatPrompt(true);
+        }
+    }, [currentSection, hasChatPromptBeenDismissed, isChatbotOpen, showChatPrompt, status]);
+
+    useEffect(() => {
+        if (isChatbotOpen && !hasChatPromptBeenDismissed) {
+            dismissChatPrompt();
+        }
+    }, [isChatbotOpen, hasChatPromptBeenDismissed, dismissChatPrompt]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-brand-gray-cloud via-white to-brand-gray-cloud">
@@ -1012,16 +1109,50 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    {!isChatbotOpen && (
-                        <button
-                            onClick={() => setIsChatbotOpen(true)}
-                            className="fixed bottom-6 right-6 bg-brand-orange text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center hover:bg-brand-orange-light transition-colors"
-                            aria-label="Open AI Assistant"
-                        >
-                            <MessageCircle className="w-8 h-8" />
-                        </button>
+                    {(!isChatbotOpen || showChatPrompt) && (
+                        <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 z-40">
+                            {showChatPrompt && !isChatbotOpen && (
+                                <div
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={handleChatPromptClick}
+                                    onKeyDown={handleChatPromptKeyDown}
+                                    className={`relative max-w-xs cursor-pointer rounded-2xl bg-gradient-to-r from-[#2563eb] to-[#38bdf8] px-4 py-3 text-white shadow-xl transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-white/70 focus:ring-offset-2 focus:ring-offset-[#2563eb] ${
+                                        chatPromptVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+                                    } ${chatPromptAnimating ? 'animate-bounce' : ''}`}
+                                    aria-label="Open AI assistant help"
+                                >
+                                    <p className="pr-6 text-sm font-medium leading-snug">Hi! Need help with the survey?</p>
+                                    <button
+                                        type="button"
+                                        onClick={handleChatPromptDismiss}
+                                        className="absolute right-2 top-2 rounded-full bg-white/20 p-1 text-white transition-colors hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/70"
+                                        aria-label="Dismiss chat helper"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            )}
+                            {!isChatbotOpen && (
+                                <button
+                                    onClick={() => setIsChatbotOpen(true)}
+                                    className="bg-brand-orange text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center hover:bg-brand-orange-light transition-colors"
+                                    aria-label="Open AI Assistant"
+                                >
+                                    <MessageCircle className="w-8 h-8" />
+                                </button>
+                            )}
+                        </div>
                     )}
-                    <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
+                    <Chatbot
+                        isOpen={isChatbotOpen}
+                        onClose={() => setIsChatbotOpen(false)}
+                        currentSectionData={{
+                            sectionName: currentSectionData?.name ?? '',
+                            sectionId: currentSectionData?.id ?? '',
+                            responses
+                        }}
+                    />
                 </main>
             )}
         </div>

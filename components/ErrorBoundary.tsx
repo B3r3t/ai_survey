@@ -1,4 +1,5 @@
 import React, { Component, ReactNode } from 'react';
+import type { ErrorInfo } from 'react';
 
 interface Props {
   children: ReactNode;
@@ -10,17 +11,23 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, error: null };
+  declare props: Props;
+  state: State;
+
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: any) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Error caught by boundary:', error, errorInfo);
   }
 
-  render() {
+  render(): ReactNode {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-brand-gray-cloud p-4">
