@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useId, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useId, useMemo, useEffect, useRef } from 'react';
 import { SECTIONS, INITIAL_RESPONSES, PROGRESS_BAR_GROUPS } from './constants';
 import { Responses, Errors, SurveyStatus, Section } from './types';
 import ProgressBar from './components/ProgressBar';
@@ -6,8 +6,7 @@ import IntroScreen from './components/IntroScreen';
 import CompletionScreen from './components/WelcomeScreen';
 import Chatbot from './components/Chatbot';
 import { ChevronLeft, ChevronRight, Check, AlertCircle, Edit2, Clock, ChevronsUpDown, MessageCircle, ChevronDown, ChevronUp, X } from 'lucide-react';
-import { submitSurveyResponse, type SessionLoadData } from './supabaseClient';
-import { useSessionId, useAutoSave, useLoadSession } from './hooks/useAutoSave';
+import { submitSurveyResponse, generateSessionId } from './supabaseClient';
 import { sanitizeInput } from './lib/sanitize';
 import {
     INDUSTRY_OPTIONS,
@@ -606,28 +605,14 @@ const App: React.FC = () => {
     const [showChatPrompt, setShowChatPrompt] = useState(false);
     const [chatPromptAnimating, setChatPromptAnimating] = useState(false);
     const [chatPromptVisible, setChatPromptVisible] = useState(false);
-    const sessionId = useSessionId();
+    const sessionIdRef = useRef<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionError, setSubmissionError] = useState<string | null>(null);
     const [submissionSuccess, setSubmissionSuccess] = useState(false);
-    const [lastSaved, setLastSaved] = useState<Date | null>(null);
-    const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
     const [openReviewSection, setOpenReviewSection] = useState<string | null>(null);
 
     const updateResponse = useCallback((field: keyof Responses, value: any) => {
-        setResponses(prev => {
-            let nextValue = value;
-
-            if (typeof value === 'string') {
-                nextValue = sanitizeInput(value);
-            } else if (Array.isArray(value)) {
-                nextValue = value.map(item =>
-                    typeof item === 'string' ? sanitizeInput(item) : item
-                );
-            }
-
-            return { ...prev, [field]: nextValue };
-        });
+        setResponses(prev => ({ ...prev, [field]: value }));
         if (errors[field]) {
             setErrors(prev => ({ ...prev, [field]: null }));
         }
@@ -692,93 +677,16 @@ const App: React.FC = () => {
         return defaultNext;
     }, [responses.aiTools, responses.franchiseeAiSupport, responses.customerFacingAi]);
 
-    const currentSectionId = SECTIONS[currentSection]?.id ?? SECTIONS[0].id;
-    const highestVisitedSection = history.length
-        ? Math.max(...history, currentSection)
-        : currentSection;
-    const progressPercentage = status === SurveyStatus.COMPLETED
-        ? 100
-        : Math.round(((highestVisitedSection + 1) / SECTIONS.length) * 100);
-
-    useAutoSave(
-        sessionId,
-        responses,
-        currentSectionId,
-        progressPercentage,
-        () => {
-            setLastSaved(new Date());
-            setAutoSaveError(null);
-        },
-        (error) => {
-            console.error('Auto-save failed:', error);
-            setAutoSaveError('Auto-save failed. Some changes may not be saved.');
-        },
-        status === SurveyStatus.IN_PROGRESS
-    );
-
-    const handleSessionRestore = useCallback((result: SessionLoadData) => {
-        const savedProgress = result.progressPercentage ?? 0;
-
-        if (savedProgress > 0) {
-            setStatus(SurveyStatus.IN_PROGRESS);
-        }
-
-        const { responses: savedResponses, currentSection: savedSectionId, isCompleted, updatedAt } = result;
-
-        if (savedResponses && Object.keys(savedResponses).length > 0) {
-            setResponses(prev => ({ ...prev, ...savedResponses }));
-        }
-
-        const sectionIndex = SECTIONS.findIndex(section => section.id === savedSectionId);
-        if (sectionIndex >= 0) {
-            setCurrentSection(sectionIndex);
-            setHistory(prev => {
-                const merged = new Set<number>(prev);
-                for (let i = 0; i <= sectionIndex; i += 1) {
-                    merged.add(i);
-                }
-                const sortedHistory = [...merged].sort((a: number, b: number) => a - b);
-                return sortedHistory;
-            });
-        }
-
-        if (updatedAt) {
-            setLastSaved(new Date(updatedAt));
-        }
-
-        if (isCompleted) {
-            setStatus(SurveyStatus.COMPLETED);
-            setSubmissionSuccess(true);
-        }
-
-        setAutoSaveError(null);
-    }, [setResponses, setCurrentSection, setHistory, setStatus, setSubmissionSuccess, setLastSaved, setAutoSaveError]);
-
-    const handleSessionRestoreError = useCallback((error: unknown) => {
-        console.error('Failed to restore session:', error);
-        setAutoSaveError('We could not restore your last session. Please continue with the survey.');
-    }, []);
-
-    useLoadSession(sessionId, handleSessionRestore, handleSessionRestoreError);
-
     const validateSection = useCallback((sectionIndex: number): boolean => {
         const sectionId = SECTIONS[sectionIndex].id;
         const newErrors: Errors = {};
         let isValid = true;
-        const sanitizedUpdates: Partial<Responses> = {};
-
-        const assignSanitizedUpdate = <K extends keyof Responses>(key: K, sanitizedValue: Responses[K]) => {
-            sanitizedUpdates[key] = sanitizedValue;
-        };
 
         const checkRequired = <K extends keyof Responses>(field: K, errorMsg: string) => {
             const value = responses[field];
 
             if (typeof value === 'string') {
                 const cleaned = sanitizeInput(value).trim();
-                if (cleaned !== value) {
-                    assignSanitizedUpdate(field, cleaned as Responses[K]);
-                }
                 if (!cleaned) {
                     newErrors[field] = errorMsg;
                     isValid = false;
@@ -787,16 +695,16 @@ const App: React.FC = () => {
             }
 
             if (Array.isArray(value)) {
-                const sanitizedArray = value.map(item =>
-                    typeof item === 'string' ? sanitizeInput(item).trim() : item
-                );
+                const sanitizedArray = (value as unknown[])
+                    .map(item => (typeof item === 'string' ? sanitizeInput(item).trim() : item))
+                    .filter(item => {
+                        if (typeof item === 'string') {
+                            return item.length > 0;
+                        }
+                        return item !== null && item !== undefined;
+                    });
 
-                const hasChanged = sanitizedArray.some((item, index) => item !== (value as unknown[])[index]);
-                if (hasChanged) {
-                    assignSanitizedUpdate(field, sanitizedArray as Responses[K]);
-                }
-
-                if (sanitizedArray.length === 0 || sanitizedArray.every(item => item === '')) {
+                if (sanitizedArray.length === 0) {
                     newErrors[field] = errorMsg;
                     isValid = false;
                 }
@@ -889,13 +797,9 @@ const App: React.FC = () => {
                 break;
         }
         
-        if (Object.keys(sanitizedUpdates).length > 0) {
-            setResponses(prev => ({ ...prev, ...sanitizedUpdates }));
-        }
-
         setErrors(newErrors);
         return isValid;
-    }, [responses, setResponses]);
+    }, [responses]);
 
     const handleNext = async () => {
         if (validateSection(currentSection)) {
@@ -913,13 +817,13 @@ const App: React.FC = () => {
                 setSubmissionError(null);
 
                 try {
+                    const sessionId = sessionIdRef.current ?? (sessionIdRef.current = generateSessionId());
                     const result = await submitSurveyResponse(responses, sessionId);
 
                     if (result.success) {
+                        sessionIdRef.current = null;
                         setSubmissionSuccess(true);
                         setStatus(SurveyStatus.COMPLETED);
-                        // Clear session storage on successful submission
-                        localStorage.removeItem('survey_session_id');
                     } else {
                         setSubmissionError('Failed to submit survey. Please try again or download your responses as backup.');
                     }
@@ -1059,17 +963,6 @@ const App: React.FC = () => {
 
                         <div className="bg-white border border-brand-gray-smoke p-6 sm:p-8 rounded-xl shadow-lg">
                             <ProgressBar currentSection={currentSection} sections={SECTIONS} history={history} jumpToSection={jumpToSection} groups={PROGRESS_BAR_GROUPS} />
-
-                            {(lastSaved || autoSaveError) && (
-                                <div className="mt-4 flex flex-col gap-2 text-xs text-brand-gray-graphite sm:flex-row sm:items-center sm:justify-between">
-                                    {lastSaved && (
-                                        <span>Last saved: {lastSaved.toLocaleTimeString()}</span>
-                                    )}
-                                    {autoSaveError && (
-                                        <span className="text-red-600" role="alert">{autoSaveError}</span>
-                                    )}
-                                </div>
-                            )}
 
                             <div className="flex justify-between items-center border-t border-b border-brand-gray-smoke py-4 mb-8">
                                 <div>
