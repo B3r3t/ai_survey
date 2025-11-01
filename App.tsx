@@ -612,19 +612,7 @@ const App: React.FC = () => {
     const [openReviewSection, setOpenReviewSection] = useState<string | null>(null);
 
     const updateResponse = useCallback((field: keyof Responses, value: any) => {
-        setResponses(prev => {
-            let nextValue = value;
-
-            if (typeof value === 'string') {
-                nextValue = sanitizeInput(value);
-            } else if (Array.isArray(value)) {
-                nextValue = value.map(item =>
-                    typeof item === 'string' ? sanitizeInput(item) : item
-                );
-            }
-
-            return { ...prev, [field]: nextValue };
-        });
+        setResponses(prev => ({ ...prev, [field]: value }));
         if (errors[field]) {
             setErrors(prev => ({ ...prev, [field]: null }));
         }
