@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify';
 import { X, Send, Bot } from 'lucide-react';
 import { ChatMessage, Responses } from '../types';
 import { REVIEW_SECTIONS } from '../reviewConfig';
+import './chatbot-styles.css';
 
 interface ChatbotProps {
   isOpen: boolean;
@@ -370,7 +371,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, currentSectionData }
               <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${msg.role === 'user' ? 'bg-brand-orange text-white rounded-br-none' : 'bg-brand-gray-cloud text-brand-dark-bg rounded-bl-none'}`}>
                 {msg.role === 'assistant' ? (
                   <div
-                    className="text-sm space-y-2"
+                    className="assistant-message text-sm space-y-2"
                     dangerouslySetInnerHTML={{ __html: msg.formattedContent ?? sanitizeAssistantContent(msg.content) }}
                   />
                 ) : (
