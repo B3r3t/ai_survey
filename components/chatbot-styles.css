@@ -1,0 +1,69 @@
+/* Enhanced Chatbot Styling */
+
+/* Assistant message formatting */
+.assistant-message {
+  line-height: 1.6;
+}
+
+.assistant-message p {
+  margin: 0;
+  margin-bottom: 0.5rem;
+}
+
+.assistant-message p:last-child {
+  margin-bottom: 0;
+}
+
+.assistant-message strong {
+  font-weight: 600;
+  color: inherit;
+}
+
+.assistant-message ul {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+  list-style-type: disc;
+}
+
+.assistant-message ul li {
+  margin: 0.25rem 0;
+  padding-left: 0.25rem;
+}
+
+.assistant-message ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+  list-style-type: decimal;
+}
+
+.assistant-message ol li {
+  margin: 0.25rem 0;
+  padding-left: 0.25rem;
+}
+
+.assistant-message a {
+  color: #f57c00;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.assistant-message a:hover {
+  color: #ef6c00;
+}
+
+.assistant-message code {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875em;
+}
+
+/* Ensure proper spacing between elements */
+.assistant-message > *:first-child {
+  margin-top: 0;
+}
+
+.assistant-message > *:last-child {
+  margin-bottom: 0;
+}
