@@ -27,18 +27,80 @@ const sanitizeAssistantContent = (content: string) => {
 
   const containsHtml = /<\/?[a-z][\s\S]*>/i.test(trimmed);
 
-  const ensureBasicMarkup = (value: string) => {
-    const normalized = value
-      .split(/\n{2,}/)
-      .map(paragraph => paragraph.trim())
-      .filter(paragraph => paragraph.length > 0)
-      .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br />')}</p>`)
-      .join('');
+  const escapeHtml = (value: string) =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
 
-    return normalized || `<p>${value}</p>`;
+  const applyInlineFormatting = (value: string) => {
+    const escaped = escapeHtml(value);
+
+    const withLinks = escaped.replace(
+      /\[([^\]]+)]\((https?:\/\/[^\s)]+)\)/g,
+      (_, text, href) => {
+        const safeHref = (href as string).replace(/"/g, '&quot;');
+        return `<a href="${safeHref}">${text}</a>`;
+      }
+    );
+
+    const withBold = withLinks.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    const withCode = withBold.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    return withCode;
   };
 
-  const htmlContent = containsHtml ? trimmed : ensureBasicMarkup(trimmed);
+  const convertMarkdownToHtml = (value: string) => {
+    const lines = value.split(/\r?\n/);
+    const htmlParts: string[] = [];
+    let paragraphBuffer: string[] = [];
+    let listBuffer: string[] = [];
+
+    const flushParagraph = () => {
+      if (paragraphBuffer.length === 0) {
+        return;
+      }
+      htmlParts.push(`<p>${paragraphBuffer.join('<br />')}</p>`);
+      paragraphBuffer = [];
+    };
+
+    const flushList = () => {
+      if (listBuffer.length === 0) {
+        return;
+      }
+      htmlParts.push(`<ul>${listBuffer.join('')}</ul>`);
+      listBuffer = [];
+    };
+
+    lines.forEach(line => {
+      const trimmedLine = line.trim();
+
+      if (trimmedLine.length === 0) {
+        flushParagraph();
+        flushList();
+        return;
+      }
+
+      const listMatch = trimmedLine.match(/^[-*•]\s+(.*)$/);
+      if (listMatch) {
+        flushParagraph();
+        listBuffer.push(`<li>${applyInlineFormatting(listMatch[1])}</li>`);
+        return;
+      }
+
+      flushList();
+      paragraphBuffer.push(applyInlineFormatting(trimmedLine));
+    });
+
+    flushParagraph();
+    flushList();
+
+    return htmlParts.join('') || `<p>${applyInlineFormatting(value)}</p>`;
+  };
+
+  const htmlContent = containsHtml ? trimmed : convertMarkdownToHtml(trimmed);
 
   const sanitized = DOMPurify.sanitize(htmlContent, {
     ALLOWED_TAGS: ASSISTANT_ALLOWED_TAGS,
@@ -179,9 +241,9 @@ Your role:
 
 Response style:
 - Reply with concise HTML snippets (no <html> or <body> tags)
-- Use bold highlights and short bullet lists where helpful
-- Limit bullet lists to five items or fewer
-- Link to resources with <a> tags when providing URLs
+- Use <strong> tags for emphasis (avoid markdown asterisks)
+- Use <ul> and <li> tags for bullet lists (five items or fewer)
+- Link to resources with <a> tags when providing URLs and include target="_blank"
 - Keep language succinct while staying friendly
 
 ${knowledgeBase}${context}`;
