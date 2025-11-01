@@ -117,4 +117,5 @@ export enum SurveyStatus {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  formattedContent?: string;
 }
