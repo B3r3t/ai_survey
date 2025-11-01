@@ -681,20 +681,12 @@ const App: React.FC = () => {
         const sectionId = SECTIONS[sectionIndex].id;
         const newErrors: Errors = {};
         let isValid = true;
-        const sanitizedUpdates: Partial<Responses> = {};
-
-        const assignSanitizedUpdate = <K extends keyof Responses>(key: K, sanitizedValue: Responses[K]) => {
-            sanitizedUpdates[key] = sanitizedValue;
-        };
 
         const checkRequired = <K extends keyof Responses>(field: K, errorMsg: string) => {
             const value = responses[field];
 
             if (typeof value === 'string') {
                 const cleaned = sanitizeInput(value).trim();
-                if (cleaned !== value) {
-                    assignSanitizedUpdate(field, cleaned as Responses[K]);
-                }
                 if (!cleaned) {
                     newErrors[field] = errorMsg;
                     isValid = false;
@@ -703,16 +695,16 @@ const App: React.FC = () => {
             }
 
             if (Array.isArray(value)) {
-                const sanitizedArray = value.map(item =>
-                    typeof item === 'string' ? sanitizeInput(item).trim() : item
-                );
+                const sanitizedArray = (value as unknown[])
+                    .map(item => (typeof item === 'string' ? sanitizeInput(item).trim() : item))
+                    .filter(item => {
+                        if (typeof item === 'string') {
+                            return item.length > 0;
+                        }
+                        return item !== null && item !== undefined;
+                    });
 
-                const hasChanged = sanitizedArray.some((item, index) => item !== (value as unknown[])[index]);
-                if (hasChanged) {
-                    assignSanitizedUpdate(field, sanitizedArray as Responses[K]);
-                }
-
-                if (sanitizedArray.length === 0 || sanitizedArray.every(item => item === '')) {
+                if (sanitizedArray.length === 0) {
                     newErrors[field] = errorMsg;
                     isValid = false;
                 }
@@ -805,13 +797,9 @@ const App: React.FC = () => {
                 break;
         }
         
-        if (Object.keys(sanitizedUpdates).length > 0) {
-            setResponses(prev => ({ ...prev, ...sanitizedUpdates }));
-        }
-
         setErrors(newErrors);
         return isValid;
-    }, [responses, setResponses]);
+    }, [responses]);
 
     const handleNext = async () => {
         if (validateSection(currentSection)) {
