@@ -1,13 +1,16 @@
 import { Responses } from '../types';
 
 /**
- * Sanitize user input to prevent XSS and injection attacks
+ * Sanitize user input to prevent XSS and injection attacks.
+ *
+ * Note: We intentionally preserve user-entered whitespace so that spaces
+ * remain available while someone is typing into any free-text field. This
+ * keeps the typing experience natural while still stripping unsafe content.
  */
 export const sanitizeInput = (input: string): string => {
     if (typeof input !== 'string') return '';
 
     return input
-        .trim()
         .replace(/[<>]/g, '')
         .replace(/javascript:/gi, '')
         .substring(0, 10000);
