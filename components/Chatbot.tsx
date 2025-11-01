@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import DOMPurify from 'dompurify';
+import { marked } from 'marked';
 import { X, Send, Bot } from 'lucide-react';
 import { ChatMessage, Responses } from '../types';
 import { REVIEW_SECTIONS } from '../reviewConfig';
@@ -15,7 +16,37 @@ interface ChatbotProps {
   };
 }
 
-const ASSISTANT_ALLOWED_TAGS = ['p', 'ul', 'ol', 'li', 'strong', 'em', 'a', 'code', 'pre', 'br', 'span'];
+marked.setOptions({
+  breaks: true,
+  gfm: true
+});
+
+const ASSISTANT_ALLOWED_TAGS = [
+  'p',
+  'ul',
+  'ol',
+  'li',
+  'strong',
+  'em',
+  'a',
+  'code',
+  'pre',
+  'br',
+  'span',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'blockquote',
+  'hr',
+  'table',
+  'thead',
+  'tbody',
+  'tr',
+  'th',
+  'td',
+  'del'
+];
 const ASSISTANT_ALLOWED_ATTR = ['href', 'title', 'target', 'rel'];
 
 const sanitizeAssistantContent = (content: string) => {
@@ -27,18 +58,9 @@ const sanitizeAssistantContent = (content: string) => {
 
   const containsHtml = /<\/?[a-z][\s\S]*>/i.test(trimmed);
 
-  const ensureBasicMarkup = (value: string) => {
-    const normalized = value
-      .split(/\n{2,}/)
-      .map(paragraph => paragraph.trim())
-      .filter(paragraph => paragraph.length > 0)
-      .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br />')}</p>`)
-      .join('');
-
-    return normalized || `<p>${value}</p>`;
-  };
-
-  const htmlContent = containsHtml ? trimmed : ensureBasicMarkup(trimmed);
+  const htmlContent = containsHtml
+    ? trimmed
+    : (marked.parse(trimmed) as string);
 
   const sanitized = DOMPurify.sanitize(htmlContent, {
     ALLOWED_TAGS: ASSISTANT_ALLOWED_TAGS,
