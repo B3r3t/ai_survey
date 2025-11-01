@@ -140,5 +140,5 @@ export const INITIAL_RESPONSES: Responses = {
   // Section 15
   receiveReport: 'yes_full',
   surveyFeedback: '',
-  agntmktFollowUp: '',
+  agntmktFollowup: '',
 };
