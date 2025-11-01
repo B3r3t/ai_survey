@@ -101,7 +101,7 @@ export interface Responses {
   // Section 15
   receiveReport: string;
   surveyFeedback: string;
-  agntmktFollowUp: string;
+  agntmktFollowup: string;
 }
 
 export type Errors = {

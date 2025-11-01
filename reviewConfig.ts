@@ -82,7 +82,7 @@ const OPTION_LABELS = {
   aiForCompliance: buildOptionMap(AI_FOR_COMPLIANCE_OPTIONS),
   competitorComparison: buildOptionMap(COMPETITOR_COMPARISON_OPTIONS),
   receiveReport: buildOptionMap(RECEIVE_REPORT_OPTIONS),
-  agntmktFollowUp: buildOptionMap(AGNTMKT_FOLLOWUP_OPTIONS),
+  agntmktFollowup: buildOptionMap(AGNTMKT_FOLLOWUP_OPTIONS),
 } as const;
 
 type SingleChoiceQuestion = {

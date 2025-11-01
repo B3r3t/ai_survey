@@ -5,7 +5,6 @@ import { INITIAL_RESPONSES } from './constants';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const surveyVersion = import.meta.env.VITE_SURVEY_VERSION ?? null;
 
 if (!supabaseUrl || !supabaseAnonKey) {
     console.error('Missing Supabase environment variables');
@@ -46,7 +45,10 @@ interface ResponseMetadata {
     currentSection?: string;
     progressPercentage?: number;
     completedAt?: string | null;
-    surveyVersion?: string | null;
+    startedAt?: string | null;
+    timeSpentSeconds?: number | null;
+    ipAddress?: string | null;
+    referrerUrl?: string | null;
 }
 
 const getUserAgent = (fallback?: string | null) => {
@@ -72,7 +74,6 @@ export const transformResponsesForDB = (
 
     const dbPayload: Record<string, unknown> = {
         session_id: sessionId,
-        survey_version: metadata.surveyVersion ?? surveyVersion ?? '2025',
         email: sanitized.email,
         company_name: sanitized.companyName,
         industry: sanitized.industry,
@@ -108,7 +109,7 @@ export const transformResponsesForDB = (
         challenges_ranked: cleanArray(sanitized.challengesRanked || []),
         challenges_other: sanitized.challengesOther || null,
         dedicated_ai_expertise: sanitized.dedicatedAiExpertise,
-        data_infrastructure_readiness: sanitized.dataInfrastructureReadiness || 0,
+        data_infrastructure_readiness: sanitized.dataInfrastructureReadiness ?? null,
         centralized_data_platform: sanitized.centralizedDataPlatform,
         data_sources: cleanArray(sanitized.dataSources || []),
         data_sources_other: sanitized.dataSourcesOther || null,
@@ -124,11 +125,11 @@ export const transformResponsesForDB = (
         ai_policy: sanitized.aiPolicy,
         ethical_concerns: cleanArray(sanitized.ethicalConcerns || []),
         ethical_concerns_other: sanitized.ethicalConcernsOther || null,
-        job_impact_concern: sanitized.jobImpactConcern || 0,
+        job_impact_concern: sanitized.jobImpactConcern ?? null,
         ai_for_compliance: sanitized.aiForCompliance || null,
         competitor_comparison: sanitized.competitorComparison,
         exciting_ai_trend: sanitized.excitingAiTrend,
-        personal_ai_comfort: sanitized.personalAiComfort || 0,
+        personal_ai_comfort: sanitized.personalAiComfort ?? null,
         desired_ai_capabilities: sanitized.desiredAiCapabilities || null,
         receive_report: sanitized.receiveReport || null,
         survey_feedback: sanitized.surveyFeedback || null,
@@ -140,29 +141,33 @@ export const transformResponsesForDB = (
         user_agent: getUserAgent(metadata.userAgent),
         updated_at: new Date().toISOString(),
     };
+
+    if (metadata.startedAt !== undefined) {
+        dbPayload.started_at = metadata.startedAt;
+    }
+
+    if (metadata.timeSpentSeconds !== undefined) {
+        dbPayload.time_spent_seconds = metadata.timeSpentSeconds;
+    }
+
+    if (metadata.ipAddress !== undefined) {
+        dbPayload.ip_address = metadata.ipAddress;
+    }
+
+    if (metadata.referrerUrl !== undefined) {
+        dbPayload.referrer_url = metadata.referrerUrl;
+    }
+
     return dbPayload;
 };
 
 type DbPayload = ReturnType<typeof transformResponsesForDB>;
 
 const upsertSurveyResponses = async (payload: DbPayload) => {
-    const baseResult = await supabase
+    return supabase
         .from('survey_responses')
         .upsert([payload], { onConflict: 'session_id' })
         .select();
-
-    if (baseResult.error?.code === '42703' && 'survey_version' in payload) {
-        console.warn(
-            'Supabase survey_responses table is missing survey_version column. Retrying without it.'
-        );
-        const { survey_version: _surveyVersion, ...fallbackPayload } = payload;
-        return supabase
-            .from('survey_responses')
-            .upsert([fallbackPayload as Record<string, unknown>], { onConflict: 'session_id' })
-            .select();
-    }
-
-    return baseResult;
 };
 
 // Submit completed survey
@@ -174,7 +179,6 @@ export const submitSurveyResponse = async (responses: Responses, sessionId: stri
             currentSection: 'completed',
             progressPercentage: 100,
             completedAt: new Date().toISOString(),
-            surveyVersion,
         });
 
         const { data, error } = await upsertSurveyResponses(dbData);
@@ -205,7 +209,6 @@ export const autoSaveProgress = async (
             currentSection,
             progressPercentage,
             completedAt: null,
-            surveyVersion,
         });
 
         const { data, error } = await upsertSurveyResponses(dbData);
@@ -228,6 +231,9 @@ export interface SessionLoadData {
     progressPercentage: number;
     isCompleted: boolean;
     updatedAt: string | null;
+    startedAt: string | null;
+    completedAt: string | null;
+    timeSpentSeconds: number | null;
 }
 
 // Load existing session (if user wants to resume)
@@ -256,6 +262,12 @@ export const loadSession = async (sessionId: string) => {
             progressPercentage: Number(data.progress_percentage ?? 0),
             isCompleted: Boolean(data.is_completed),
             updatedAt: (data.updated_at as string) ?? null,
+            startedAt: (data.started_at as string) ?? null,
+            completedAt: (data.completed_at as string) ?? null,
+            timeSpentSeconds:
+                data.time_spent_seconds !== undefined && data.time_spent_seconds !== null
+                    ? Number(data.time_spent_seconds)
+                    : null,
         };
 
         return { success: true, data: payload };
